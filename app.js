@@ -18,7 +18,7 @@ app.use((req, res, next) => {
   //如果token有效，next()
   //如果token过期了，返回401错误
   // 登录接口白名单：不需要token验证
-  const whiteList = ['/user/login', '/user/phone/login']
+  const whiteList = ['/user/login']
   if (whiteList.includes(req.url)) {
     next()
     return;
