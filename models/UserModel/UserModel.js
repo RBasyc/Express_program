@@ -31,8 +31,7 @@ const userSchema = new mongoose.Schema({
   labId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lab',
-  },
-  role: {
+  },  role: {
     type: String,
     enum: {
       values: ['admin', 'manager', 'user'],

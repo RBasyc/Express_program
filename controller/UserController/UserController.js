@@ -14,7 +14,7 @@ const UserController = {
                 nickName: user.nickName
             }, "1d")
             res.header("Authorization", token)
-            res.status(200).send({ errCode: '0', errorInfo: '登录成功', token })
+            res.status(200).send({ errCode: '0', errorInfo: '登录成功', token ,userInfo: user})
         }
     },
     register: async (req, res) => {
