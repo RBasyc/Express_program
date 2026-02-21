@@ -3,7 +3,7 @@ const app = express()
 const cros = require('cors')
 const port = 3000
 
-const mongoDB = require('./mongoDB')
+const mongoDB = require('./utils/mongoDB')
 const JWT = require('./utils/JWT')
 mongoDB.createConnection()
 

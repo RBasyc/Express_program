@@ -3,9 +3,9 @@ const createConnection = async () => {
     try {
         await mongoose.connect('mongodb://localhost:27017/test', {
         })
-        console.log('Connected to MongoDB')
+        console.log('成功连接到数据库')
     } catch (error) {
-        console.error('Error connecting to MongoDB:', error)
+        console.error('貌似出了些问题:', error)
     }
 }
 const closeConnection = async () => {

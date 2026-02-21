@@ -4,14 +4,14 @@ const JWT = require('../../utils/JWT');
 
 const userServices = {
     // 普通登录
-    login: async (nickname, password) => {
+    login: async (nickName, password) => {
         
-        const user = await User.findOne({username: nickname, password });
+        const user = await User.findOne({nickName, password });
         
         if (user === null) {
             return null;
         }
-        if (user.username !== nickname || user.password !== password) {
+        if (user.nickName !== nickName || user.password !== password) {
             return null;
         }
         return user;

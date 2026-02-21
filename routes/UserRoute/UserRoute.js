@@ -4,5 +4,7 @@ const UserController = require('../../controller/UserController/UserController.j
 
 // 普通登录
 UserRoute.post('/login', UserController.login);
+// 注册
+UserRoute.post('/register', UserController.register);
 
 module.exports = UserRoute;

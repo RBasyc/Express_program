@@ -11,11 +11,21 @@ const UserController = {
         else {
             const token = JWT.generate({
                 _id: user._id,
-                username: user.username
+                nickName: user.nickName
             }, "1d")
             res.header("Authorization", token)
             res.status(200).send({ errCode: '0', errorInfo: '登录成功', token })
         }
+    },
+    register: async (req, res) => {
+        const { nickName, password } = req.body;
+        const user = await userServices.register(nickName, password);
+        if (!user) {
+            return res.status(400).send({ errCode: '-1', errorInfo: '注册失败，用户名可能已存在' })
+        }
+        else {
+            res.status(200).send({ errCode: '0', errorInfo: '注册成功' })
+        }   
     }
 }
 
