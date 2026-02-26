@@ -9,59 +9,69 @@ mongoDB.createConnection()
 
 
 const UserRouter = require('./routes/UserRoute/UserRoute')
+const UploadRouter = require('./routes/UserRoute/UploadRouter')
 
 app.use(express.json())
-app.use(cros())
-app.use('/user', UserRouter)
+app.use(cros({
+    origin: 'http://localhost:10086',
+    credentials: true
+}))
 
+// JWT 验证中间件 - 放在路由之前
 app.use((req, res, next) => {
-  //如果token有效，next()
-  //如果token过期了，返回401错误
-  // 登录接口白名单：不需要token验证
-  const whiteList = ['/user/login']
-  if (whiteList.includes(req.url)) {
-    next()
-    return;
-  }
-  const authorization = req.headers['authorization']
-  if (!authorization) {
-    res.status(401).send({ errCode: "-1", errorInfo: "未提供token" })
-    return;
-  }
-  const token = authorization.split(" ")[1]
-  if (token) {
-    var payload = JWT.verify(token)
-    if (payload) {
-      const newToken = JWT.generate({
-        _id: payload._id,
-        username: payload.username
-      }, "1d")
-      res.header("Authorization", newToken)
-      next()
+    // 登录、注册、上传接口白名单：不需要token验证
+    const whiteList = ['/user/login', '/user/register', '/upload']
+    if (whiteList.some(path => req.path.startsWith(path.replace(/^\/user/, '/user')) || req.path.startsWith(path.replace(/^\/upload/, '/upload')))) {
+        next()
+        return
     }
-    else {
-      res.status(401).send({ errCode: "-1", errorInfo: "token过期" })
+
+    const authorization = req.headers['authorization']
+    if (!authorization) {
+        res.status(401).send({ errCode: "-1", errorInfo: "未提供token" })
+        return
     }
-  }
+
+    const token = authorization.split(" ")[1]
+    if (token) {
+        var payload = JWT.verify(token)
+        if (payload) {
+            const newToken = JWT.generate({
+                _id: payload._id,
+                username: payload.username
+            }, "1d")
+            res.header("Authorization", newToken)
+            next()
+        }
+        else {
+            res.status(401).send({ errCode: "-1", errorInfo: "token过期" })
+        }
+    } else {
+        res.status(401).send({ errCode: "-1", errorInfo: "token格式错误" })
+    }
 })
 
+app.use('/user', UserRouter)
+app.use('/upload', UploadRouter)
+app.use('/uploads', express.static('public/avatar')) // 静态文件服务，提供访问上传的图片
+
 app.use(function (req, res, next) {
-  const err = new Error('Not Found')
-  err.status = 404
-  next(err);
+    const err = new Error('Not Found')
+    err.status = 404
+    next(err);
 });
 
 app.use(function (err, req, res, next) {
-  res.status(err.status || 500);
-  res.json({
-    errCode: '-1',
-    errorInfo: err.message || 'Internal Server Error',
-    stack: req.app.get('env') === 'development' ? err.stack : undefined
-  });
+    res.status(err.status || 500);
+    res.json({
+        errCode: '-1',
+        errorInfo: err.message || 'Internal Server Error',
+        stack: req.app.get('env') === 'development' ? err.stack : undefined
+    });
 });
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+    console.log(`Example app listening on port ${port}`)
 })
 
 module.exports = app;
