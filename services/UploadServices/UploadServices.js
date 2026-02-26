@@ -41,10 +41,10 @@ const uploadServices = {
      * @returns {String} 文件访问 URL
      */
     buildFileUrl: (filename, req) => {
-        // const protocol = req.protocol
-        // const host = req.get('host')
+        const protocol = req.protocol
+        const host = req.get('host')
         // 返回完整的可访问 URL
-        return `http://localhost:3000/public/avatar/${filename}`
+        return `${protocol}://${host}/public/avatar/${filename}`
     }
 }
 

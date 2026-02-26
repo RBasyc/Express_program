@@ -4,7 +4,6 @@ const cros = require('cors')
 const port = 3000
 
 const mongoDB = require('./utils/mongoDB')
-const JWT = require('./utils/JWT')
 mongoDB.createConnection()
 
 
@@ -13,13 +12,15 @@ const UploadRouter = require('./routes/UserRoute/UploadRouter')
 
 app.use(express.json())
 app.use(cros({
-    origin: ['http://localhost:10086', 'http://192.168.0.102:10086', /^http:\/\/192\.168\.\d+\.\d+:10086$/],
+    origin: ['http://localhost:10086', 'http://192.168.67.48:10086', /^http:\/\/192\.168\.\d+\.\d+:10086$/],
     credentials: true
 }))
 
 // 静态文件服务 - 放在 JWT 中间件之前
 app.use('/public', express.static('public'))
 
+
+const JWT = require('./utils/JWT')
 // JWT 验证中间件 - 放在路由之前
 app.use((req, res, next) => {
     // 登录、注册、上传接口白名单：不需要token验证
