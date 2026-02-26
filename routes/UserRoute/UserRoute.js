@@ -7,4 +7,6 @@ UserRoute.post('/login', UserController.login);
 // 注册
 UserRoute.post('/register', UserController.register);
 
+UserRoute.post('/update-profile', UserController.updateProfile);
+
 module.exports = UserRoute;

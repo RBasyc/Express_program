@@ -13,9 +13,12 @@ const UploadRouter = require('./routes/UserRoute/UploadRouter')
 
 app.use(express.json())
 app.use(cros({
-    origin: 'http://localhost:10086',
+    origin: ['http://localhost:10086', 'http://192.168.0.102:10086', /^http:\/\/192\.168\.\d+\.\d+:10086$/],
     credentials: true
 }))
+
+// 静态文件服务 - 放在 JWT 中间件之前
+app.use('/public', express.static('public'))
 
 // JWT 验证中间件 - 放在路由之前
 app.use((req, res, next) => {
@@ -32,7 +35,9 @@ app.use((req, res, next) => {
         return
     }
 
-    const token = authorization.split(" ")[1]
+
+
+    const token = authorization
     if (token) {
         var payload = JWT.verify(token)
         if (payload) {
@@ -53,7 +58,6 @@ app.use((req, res, next) => {
 
 app.use('/user', UserRouter)
 app.use('/upload', UploadRouter)
-app.use('/uploads', express.static('public/avatar')) // 静态文件服务，提供访问上传的图片
 
 app.use(function (req, res, next) {
     const err = new Error('Not Found')

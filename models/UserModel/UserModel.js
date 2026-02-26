@@ -42,14 +42,14 @@ const userSchema = new mongoose.Schema({
     },
     avatar: {
         type: String,
-        default: null,
-        validate: {
-            validator: function (v) {
-                // 简单的URL验证
-                return /^(http|https):\/\/[^ "]+$|^[a-zA-Z0-9._-]+\.(png|jpg|jpeg|gif)$/.test(v);
-            },
-            message: '请提供有效的头像URL或文件名'
-        }
+        default: 'http://localhost:3000/public/avatar/default-avatar.png',
+        // validate: {
+        //     validator: function (v) {
+        //         // 简单的URL验证
+        //         return /^(http|https):\/\/[^ "]+$|^[a-zA-Z0-9._-]+\.(png|jpg|jpeg|gif)$/.test(v);
+        //     },
+        //     message: '请提供有效的头像URL或文件名'
+        // }
     },
     createdAt: {
         type: Date,
