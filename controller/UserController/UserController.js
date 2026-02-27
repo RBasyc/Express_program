@@ -2,6 +2,26 @@ const userServices = require('../../services/UserServices/UserServices.js');
 const JWT = require('../../utils/JWT');
 
 const UserController = {
+    checkNickname: async (req, res) => {
+        const { nickName } = req.query;
+        if (!nickName) {
+            return res.status(400).send({ errCode: '-1', errorInfo: '昵称不能为空' })
+        }
+        const exists = await userServices.checkNickname(nickName);
+        if (exists) {
+            res.status(200).send({
+                errCode: '10001',
+                errorInfo: '昵称已存在',
+                data: { exists: true }
+            })
+        } else {
+            res.status(200).send({
+                errCode: '0',
+                errorInfo: 'success',
+                data: { exists: false }
+            })
+        }
+    },
     login: async (req, res) => {
         const { nickName, password } = req.body;
         const user = await userServices.login(nickName, password);
@@ -21,18 +41,21 @@ const UserController = {
         const { nickName, password } = req.body;
         const user = await userServices.register(nickName, password);
         if (!user) {
-            return res.status(400).send({ errCode: '-1', errorInfo: '注册失败，用户名可能已存在' })
+            return res.status(400).send({ errCode: '10001', errorInfo: '该昵称已被使用', data: null })
         }
         else {
+            const token = JWT.generate({
+                _id: user._id,
+                nickName: user.nickName
+            }, "1d")
+            res.header("Authorization", token)
             res.status(200).send({
                 errCode: '0',
-                errorInfo: '注册成功',
-                userInfo: {
-                    _id: user._id,
+                errorInfo: 'success',
+                data: {
+                    userId: user._id,
                     nickName: user.nickName,
-                    role: user.role,
-                    avatar: user.avatar,
-                    createdAt: user.createdAt
+                    token: token
                 }
             })
         }
@@ -49,7 +72,8 @@ const UserController = {
         else {
             res.status(200).send({ errCode: '0', errorInfo: '更新成功', updatedUser })
         }
-    }
+    },
+
 }
 
 module.exports = UserController;

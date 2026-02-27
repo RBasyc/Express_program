@@ -15,7 +15,15 @@ const userServices = {
         }
         return user;
     },
+    checkNickname: async (nickName) => {
+        const user = await User.findOne({ nickName });
+        return user !== null;
+    },
     register: async (nickName, password) => {
+        const existingUser = await User.findOne({ nickName });
+        if (existingUser) {
+            return null;
+        }
         const user = await User.create({
             nickName,
             password

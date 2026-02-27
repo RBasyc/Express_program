@@ -24,7 +24,7 @@ const JWT = require('./utils/JWT')
 // JWT 验证中间件 - 放在路由之前
 app.use((req, res, next) => {
     // 登录、注册、上传接口白名单：不需要token验证
-    const whiteList = ['/user/login', '/user/register', '/upload']
+    const whiteList = ['/user/login', '/user/register', '/user/check-nickname', '/upload']
     if (whiteList.some(path => req.path.startsWith(path.replace(/^\/user/, '/user')) || req.path.startsWith(path.replace(/^\/upload/, '/upload')))) {
         next()
         return

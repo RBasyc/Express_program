@@ -4,6 +4,7 @@ const userSchema = new mongoose.Schema({
     nickName: {
         type: String,
         trim: true,
+        unique: true,
         minlength: [3, '用户名至少3个字符'],
         maxlength: [20, '用户名最多20个字符']
     },
