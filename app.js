@@ -9,6 +9,7 @@ mongoDB.createConnection()
 
 const UserRouter = require('./routes/UserRoute/UserRoute')
 const UploadRouter = require('./routes/UserRoute/UploadRouter')
+const InventoryRouter = require('./routes/InventoryRoute/InventoryRoute')
 
 app.use(express.json())
 app.use(cros({
@@ -59,6 +60,7 @@ app.use((req, res, next) => {
 
 app.use('/user', UserRouter)
 app.use('/upload', UploadRouter)
+app.use('/adminapi/inventory', InventoryRouter)
 
 app.use(function (req, res, next) {
     const err = new Error('Not Found')
