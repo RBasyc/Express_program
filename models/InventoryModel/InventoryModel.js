@@ -108,8 +108,7 @@ const inventorySchema = new mongoose.Schema({
     collection: 'inventory'
 });
 
-// 索引
-inventorySchema.index({ code: 1 });
+// 索引 (code字段已通过unique:true自动创建索引，此处无需重复定义)
 inventorySchema.index({ category: 1 });
 inventorySchema.index({ status: 1 });
 inventorySchema.index({ expiryDate: 1 });

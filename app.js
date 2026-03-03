@@ -6,6 +6,8 @@ const port = 3000
 const mongoDB = require('./utils/mongoDB')
 mongoDB.createConnection()
 
+// 导入模型以确保 mongoose 正确注册
+const { User, Inventory } = require('./models/index')
 
 const UserRouter = require('./routes/UserRoute/UserRoute')
 const UploadRouter = require('./routes/UserRoute/UploadRouter')

@@ -14,6 +14,9 @@ InventoryRouter.get('/alerts', InventoryController.getAlertItems);
 // 获取耗材详情
 InventoryRouter.get('/detail/:id', InventoryController.getDetail);
 
+// 获取统计数据
+InventoryRouter.get('/statistics', InventoryController.getStatistics);
+
 // 添加耗材
 InventoryRouter.post('/add', InventoryController.add);
 

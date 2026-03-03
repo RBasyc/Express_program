@@ -1,4 +1,4 @@
-const Inventory = require('../../models/InventoryModel/InventoryModel.js');
+const { Inventory } = require('../../models/index.js');
 
 const inventoryServices = {
     // 获取库存列表
@@ -7,13 +7,13 @@ const inventoryServices = {
 
         // 构建查询条件
         const query = {};
-        if (category) {
+        if (category && category !== 'undefined' && category !== '') {
             query.category = category;
         }
-        if (status) {
+        if (status && status !== 'undefined' && status !== '') {
             query.status = status;
         }
-        if (keyword) {
+        if (keyword && keyword !== 'undefined' && keyword !== '') {
             const regex = new RegExp(keyword, 'i');
             query.$or = [
                 { name: regex },
@@ -92,7 +92,7 @@ const inventoryServices = {
             },
             { returnDocument: 'after', new: true }
         ).populate('createdBy', 'nickName realName')
-         .populate('updatedBy', 'nickName realName');
+            .populate('updatedBy', 'nickName realName');
 
         // 更新后会自动触发 pre save 中间件更新状态
         updatedItem.updateStatus();
@@ -150,6 +150,28 @@ const inventoryServices = {
         await item.save();
 
         return { success: true, data: item };
+    },
+
+    // 获取统计数据
+    getStatistics: async () => {
+        const categories = ['试剂', '耗材', '仪器', '其他'];
+
+        // 并行查询总数和各分类数量
+        const [totalCount, ...categoryCounts] = await Promise.all([
+            Inventory.countDocuments(),
+            ...categories.map(cat => Inventory.countDocuments({ category: cat }))
+        ]);
+
+        // 组装分类统计数据
+        const categoryStats = {};
+        categories.forEach((cat, index) => {
+            categoryStats[cat] = categoryCounts[index];
+        });
+
+        return {
+            total: totalCount,
+            categories: categoryStats
+        };
     }
 };
 

@@ -270,6 +270,24 @@ const InventoryController = {
                 errorInfo: error.message || '更新库存数量失败'
             });
         }
+    },
+
+    // 获取统计数据
+    getStatistics: async (req, res) => {
+        try {
+            const statistics = await inventoryServices.getStatistics();
+
+            res.status(200).send({
+                errCode: '0',
+                errorInfo: 'success',
+                data: statistics
+            });
+        } catch (error) {
+            res.status(500).send({
+                errCode: '-1',
+                errorInfo: error.message || '获取统计数据失败'
+            });
+        }
     }
 };
 
