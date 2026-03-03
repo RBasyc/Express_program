@@ -64,16 +64,14 @@ const UserController = {
         }
     },
     updateProfile: async (req, res) => {
-
-
         const { _id, realName, email, phone, avatar } = req.body;
 
-        const updatedUser = await userServices.updateProfile(_id, realName, email, phone, avatar);
-        if (!updatedUser) {
-            return res.status(400).send({ errCode: '-1', errorInfo: '更新失败，可能是用户不存在或信息不合法' })
+        const result = await userServices.updateProfile(_id, realName, email, phone, avatar);
+        if (!result.success) {
+            return res.status(400).send({ errCode: '-1', errorInfo: result.message })
         }
         else {
-            res.status(200).send({ errCode: '0', errorInfo: '更新成功', updatedUser })
+            res.status(200).send({ errCode: '0', errorInfo: result.message, updatedUser: result.data })
         }
     },
 
