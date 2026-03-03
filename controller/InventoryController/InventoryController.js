@@ -5,6 +5,10 @@ const InventoryController = {
     // 获取库存列表
     list: async (req, res) => {
         try {
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const labName = payload?.labName;
+
             const { page, pageSize, category, status, keyword } = req.query;
             const result = await inventoryServices.getList({
                 page,
@@ -12,7 +16,7 @@ const InventoryController = {
                 category,
                 status,
                 keyword
-            });
+            }, labName);
 
             res.status(200).send({
                 errCode: '0',
@@ -34,6 +38,7 @@ const InventoryController = {
             const token = req.headers['authorization'];
             const payload = JWT.verify(token);
             const userId = payload?._id;
+            const labName = payload?.labName;
 
             const { name, code, category, specification, unit, quantity, minQuantity, maxQuantity, price, supplier, purchaseDate, expiryDate, location, remarks } = req.body;
 
@@ -60,7 +65,7 @@ const InventoryController = {
                 expiryDate,
                 location,
                 remarks
-            }, userId);
+            }, userId, labName);
 
             if (!result.success) {
                 return res.status(400).send({
@@ -88,11 +93,12 @@ const InventoryController = {
             const token = req.headers['authorization'];
             const payload = JWT.verify(token);
             const userId = payload?._id;
+            const labName = payload?.labName;
 
             const { id } = req.params;
             const data = req.body;
 
-            const result = await inventoryServices.update(id, data, userId);
+            const result = await inventoryServices.update(id, data, userId, labName);
 
             if (!result.success) {
                 return res.status(400).send({
@@ -117,9 +123,13 @@ const InventoryController = {
     // 删除耗材
     delete: async (req, res) => {
         try {
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const labName = payload?.labName;
+
             const { id } = req.params;
 
-            const result = await inventoryServices.delete(id);
+            const result = await inventoryServices.delete(id, labName);
 
             if (!result.success) {
                 return res.status(400).send({
@@ -143,6 +153,10 @@ const InventoryController = {
     // 搜索耗材
     search: async (req, res) => {
         try {
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const labName = payload?.labName;
+
             const { keyword } = req.query;
 
             if (!keyword) {
@@ -152,7 +166,7 @@ const InventoryController = {
                 });
             }
 
-            const items = await inventoryServices.search(keyword);
+            const items = await inventoryServices.search(keyword, labName);
 
             res.status(200).send({
                 errCode: '0',
@@ -173,7 +187,11 @@ const InventoryController = {
     // 获取预警耗材列表
     getAlertItems: async (req, res) => {
         try {
-            const items = await inventoryServices.getAlertItems();
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const labName = payload?.labName;
+
+            const items = await inventoryServices.getAlertItems(labName);
 
             // 按预警类型分组
             const alertGroups = {
@@ -209,9 +227,13 @@ const InventoryController = {
     // 获取耗材详情
     getDetail: async (req, res) => {
         try {
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const labName = payload?.labName;
+
             const { id } = req.params;
 
-            const result = await inventoryServices.getDetail(id);
+            const result = await inventoryServices.getDetail(id, labName);
 
             if (!result.success) {
                 return res.status(404).send({
@@ -239,6 +261,7 @@ const InventoryController = {
             const token = req.headers['authorization'];
             const payload = JWT.verify(token);
             const userId = payload?._id;
+            const labName = payload?.labName;
 
             const { id } = req.params;
             const { quantity } = req.body;
@@ -250,7 +273,7 @@ const InventoryController = {
                 });
             }
 
-            const result = await inventoryServices.updateQuantity(id, quantity, userId);
+            const result = await inventoryServices.updateQuantity(id, quantity, userId, labName);
 
             if (!result.success) {
                 return res.status(400).send({
@@ -275,7 +298,11 @@ const InventoryController = {
     // 获取统计数据
     getStatistics: async (req, res) => {
         try {
-            const statistics = await inventoryServices.getStatistics();
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const labName = payload?.labName;
+
+            const statistics = await inventoryServices.getStatistics(labName);
 
             res.status(200).send({
                 errCode: '0',

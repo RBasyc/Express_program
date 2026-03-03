@@ -19,14 +19,18 @@ const userServices = {
         const user = await User.findOne({ nickName });
         return user !== null;
     },
-    register: async (nickName, password) => {
+    register: async (nickName, password, labName) => {
+        if (!labName) {
+            throw new Error('实验室名称不能为空');
+        }
         const existingUser = await User.findOne({ nickName });
         if (existingUser) {
             return null;
         }
         const user = await User.create({
             nickName,
-            password
+            password,
+            labName
         })
         return user;
     },

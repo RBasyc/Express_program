@@ -31,22 +31,24 @@ const UserController = {
         else {
             const token = JWT.generate({
                 _id: user._id,
-                nickName: user.nickName
+                nickName: user.nickName,
+                labName: user.labName
             }, "1d")
             res.header("Authorization", token)
             res.status(200).send({ errCode: '0', errorInfo: '登录成功', token, userInfo: user })
         }
     },
     register: async (req, res) => {
-        const { nickName, password } = req.body;
-        const user = await userServices.register(nickName, password);
+        const { nickName, password, labName } = req.body;
+        const user = await userServices.register(nickName, password, labName);
         if (!user) {
             return res.status(400).send({ errCode: '10001', errorInfo: '该昵称已被使用', data: null })
         }
         else {
             const token = JWT.generate({
                 _id: user._id,
-                nickName: user.nickName
+                nickName: user.nickName,
+                labName: user.labName
             }, "1d")
             res.header("Authorization", token)
             res.status(200).send({
@@ -55,6 +57,7 @@ const UserController = {
                 data: {
                     userId: user._id,
                     nickName: user.nickName,
+                    labName: user.labName,
                     token: token
                 }
             })

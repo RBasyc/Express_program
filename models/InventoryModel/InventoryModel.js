@@ -31,7 +31,7 @@ const inventorySchema = new mongoose.Schema({
         type: String,
         required: [true, '单位不能为空'],
         enum: {
-            values: ['瓶', '盒', '袋', '支', '个', '套', '台', '件', 'kg', 'g', 'L', 'ml', '其他'],
+            values: ['瓶', '盒', '袋', '支', '个', '套', '台', '件', 'kg', 'g', 'L', 'ml', '根', '卷', '其他'],
             message: '请选择有效的单位'
         }
     },
@@ -81,6 +81,13 @@ const inventorySchema = new mongoose.Schema({
         trim: true,
         maxlength: [50, '存放位置最多50个字符']
     },
+    labName: {
+        type: String,
+        required: [true, '实验室名称不能为空'],
+        trim: true,
+        maxlength: [100, '实验室名称最多100个字符'],
+        comment: '所属实验室名称'
+    },
     status: {
         type: String,
         enum: {
@@ -112,11 +119,11 @@ const inventorySchema = new mongoose.Schema({
 inventorySchema.index({ category: 1 });
 inventorySchema.index({ status: 1 });
 inventorySchema.index({ expiryDate: 1 });
+inventorySchema.index({ labName: 1 });
 
 // 更新状态中间件 - 保存前自动计算状态
-inventorySchema.pre('save', function(next) {
+inventorySchema.pre('save', function() {
     this.updateStatus();
-    next();
 });
 
 // 实例方法：更新耗材状态

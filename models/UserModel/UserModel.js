@@ -29,10 +29,14 @@ const userSchema = new mongoose.Schema({
         unique: true,
         match: [/^1[3-9]\d{9}$/, '请填写有效的手机号']
     },
-    labId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Lab',
-    }, role: {
+    labName: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: [100, '实验室名称最多100个字符'],
+        comment: '所属实验室名称（必填）'
+    },
+    role: {
         type: String,
         enum: {
             values: ['admin', 'manager', 'user'],
