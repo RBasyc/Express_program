@@ -53,12 +53,6 @@ const inventoryServices = {
 
     // 添加耗材
     add: async (data, userId, labName) => {
-        // 检查耗材编码是否已存在
-        const existingItem = await Inventory.findOne({ code: data.code });
-        if (existingItem) {
-            return { success: false, message: '耗材编码已存在' };
-        }
-
         const item = await Inventory.create({
             ...data,
             labName: labName,
@@ -84,14 +78,6 @@ const inventoryServices = {
         // 验证实验室权限
         if (existingItem.labName !== labName) {
             return { success: false, message: '无权修改其他实验室的耗材' };
-        }
-
-        // 如果更新了编码，检查新编码是否已被其他耗材使用
-        if (data.code && data.code !== existingItem.code) {
-            const codeExists = await Inventory.findOne({ code: data.code, _id: { $ne: id } });
-            if (codeExists) {
-                return { success: false, message: '耗材编码已存在' };
-            }
         }
 
         const updatedItem = await Inventory.findOneAndUpdate(
@@ -143,6 +129,19 @@ const inventoryServices = {
             query.labName = labName;
         }
         return await Inventory.find(query).sort({ createdAt: -1 });
+    },
+
+    // 扫码查询耗材（根据编号查询第一条匹配的记录）
+    getByCode: async (code, labName) => {
+        const query = { code: code.toUpperCase() };
+        if (labName) {
+            query.labName = labName;
+        }
+        const item = await Inventory.findOne(query)
+            .sort({ createdAt: -1 })
+            .populate('createdBy', 'nickName realName')
+            .populate('updatedBy', 'nickName realName');
+        return item;
     },
 
     // 获取预警耗材列表

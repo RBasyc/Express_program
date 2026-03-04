@@ -8,6 +8,9 @@ InventoryRouter.get('/list', InventoryController.list);
 // 搜索耗材
 InventoryRouter.get('/search', InventoryController.search);
 
+// 扫码查询耗材（根据编号查询第一条匹配的记录）
+InventoryRouter.get('/by-code', InventoryController.getByCode);
+
 // 获取预警耗材列表 (过期、低库存等)
 InventoryRouter.get('/alerts', InventoryController.getAlertItems);
 

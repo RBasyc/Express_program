@@ -7,11 +7,12 @@ const mongoDB = require('./utils/mongoDB')
 mongoDB.createConnection()
 
 // 导入模型以确保 mongoose 正确注册
-const { User, Inventory } = require('./models/index')
+const { User, Inventory, Lab } = require('./models/index')
 
 const UserRouter = require('./routes/UserRoute/UserRoute')
 const UploadRouter = require('./routes/UserRoute/UploadRouter')
 const InventoryRouter = require('./routes/InventoryRoute/InventoryRoute')
+const LabRouter = require('./routes/LabRoute/LabRoute')
 
 app.use(express.json())
 app.use(cros({
@@ -26,9 +27,19 @@ app.use('/public', express.static('public'))
 const JWT = require('./utils/JWT')
 // JWT 验证中间件 - 放在路由之前
 app.use((req, res, next) => {
-    // 登录、注册、上传接口白名单：不需要token验证
-    const whiteList = ['/user/login', '/user/register', '/user/check-nickname', '/upload']
-    if (whiteList.some(path => req.path.startsWith(path.replace(/^\/user/, '/user')) || req.path.startsWith(path.replace(/^\/upload/, '/upload')))) {
+    // 登录、注册、上传接口、实验室搜索/创建白名单：不需要token验证
+    const whiteList = [
+        '/user/login',
+        '/user/register',
+        '/user/check-nickname',
+        '/upload',
+        '/lab/search',    // 实验室搜索（注册时使用）
+        '/lab/list',      // 实验室列表（注册时使用）
+        '/lab/create'     // 实验室创建（注册时使用）
+    ]
+    if (whiteList.some(path => req.path.startsWith(path.replace(/^\/user/, '/user')) ||
+                                   req.path.startsWith(path.replace(/^\/upload/, '/upload')) ||
+                                   req.path.startsWith(path.replace(/^\/lab/, '/lab')))) {
         next()
         return
     }
@@ -63,6 +74,7 @@ app.use((req, res, next) => {
 app.use('/user', UserRouter)
 app.use('/upload', UploadRouter)
 app.use('/adminapi/inventory', InventoryRouter)
+app.use('/lab', LabRouter)
 
 app.use(function (req, res, next) {
     const err = new Error('Not Found')

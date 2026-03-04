@@ -64,9 +64,9 @@ const UserController = {
         }
     },
     updateProfile: async (req, res) => {
-        const { _id, realName, email, phone, avatar } = req.body;
+        const { _id, realName, email, phone, avatar, labName } = req.body;
 
-        const result = await userServices.updateProfile(_id, realName, email, phone, avatar);
+        const result = await userServices.updateProfile(_id, realName, email, phone, avatar, labName);
         if (!result.success) {
             return res.status(400).send({ errCode: '-1', errorInfo: result.message })
         }

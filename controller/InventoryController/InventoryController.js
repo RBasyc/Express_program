@@ -184,6 +184,45 @@ const InventoryController = {
         }
     },
 
+    // 扫码查询耗材（根据编号查询第一条匹配的记录，用于快速填充表单）
+    getByCode: async (req, res) => {
+        try {
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const labName = payload?.labName;
+
+            const { code } = req.query;
+
+            if (!code) {
+                return res.status(400).send({
+                    errCode: '-1',
+                    errorInfo: '请提供耗材编号'
+                });
+            }
+
+            const item = await inventoryServices.getByCode(code, labName);
+
+            if (!item) {
+                return res.status(200).send({
+                    errCode: '0',
+                    errorInfo: '未找到该编号的耗材',
+                    data: null
+                });
+            }
+
+            res.status(200).send({
+                errCode: '0',
+                errorInfo: 'success',
+                data: item
+            });
+        } catch (error) {
+            res.status(500).send({
+                errCode: '-1',
+                errorInfo: error.message || '查询耗材失败'
+            });
+        }
+    },
+
     // 获取预警耗材列表
     getAlertItems: async (req, res) => {
         try {
