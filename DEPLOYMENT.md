@@ -79,17 +79,93 @@ sudo ufw allow 27017
 ## 四、上传项目代码
 
 ### 方法1：使用 Git（推荐）
+
+#### ⚠️ GitHub SSH 权限问题解决方案
+
+如果遇到 `Permission denied (publickey)` 错误，有以下解决方案：
+
+**方案 A：使用 HTTPS 克隆（最简单，推荐）**
 ```bash
-# 克隆项目（如果代码已推送到GitHub/GitLab）
 cd /var/www
-sudo git clone <你的仓库地址> lab-inventory
+sudo git clone https://github.com/RBasyc/Express_program.git lab-inventory
+cd lab-inventory
+```
+
+**方案 B：配置 SSH 密钥（适合长期使用）**
+
+1. **生成 SSH 密钥**
+```bash
+# 生成新的 SSH 密钥（使用你的邮箱）
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# 按提示操作，可以一直按回车使用默认设置
+# 密钥将保存在 ~/.ssh/id_ed25519
+```
+
+2. **启动 SSH 代理并添加密钥**
+```bash
+# 启动 ssh-agent
+eval "$(ssh-agent -s)"
+
+# 添加私钥
+ssh-add ~/.ssh/id_ed25519
+```
+
+3. **查看公钥并添加到 GitHub**
+```bash
+# 查看公钥内容
+cat ~/.ssh/id_ed25519.pub
+```
+
+4. **添加公钥到 GitHub**
+   - 登录 GitHub 网站
+   - 点击右上角头像 → Settings
+   - 左侧菜单选择 "SSH and GPG keys"
+   - 点击 "New SSH key"
+   - Title 随意填写，如 "Ubuntu Server"
+   - Key 粘贴刚才复制的公钥内容
+   - 点击 "Add SSH key"
+
+5. **测试 SSH 连接**
+```bash
+ssh -T git@github.com
+```
+如果看到 "Hi RBasyc! You've successfully authenticated..." 说明配置成功。
+
+6. **现在可以使用 SSH 克隆**
+```bash
+cd /var/www
+sudo git clone git@github.com:RBasyc/Express_program.git lab-inventory
+cd lab-inventory
+```
+
+**方案 C：使用 Personal Access Token（如果仓库是私有的）**
+
+1. 在 GitHub 上创建 Personal Access Token：
+   - GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Generate new token (classic)
+   - 勾选 `repo` 权限
+   - 生成并复制 token
+
+2. 使用 token 克隆：
+```bash
+cd /var/www
+sudo git clone https://YOUR_TOKEN@github.com/RBasyc/Express_program.git lab-inventory
+cd lab-inventory
+```
+
+#### 克隆项目
+```bash
+cd /var/www
+# 选择上述方案中成功的方式克隆
+sudo git clone https://github.com/RBasyc/Express_program.git lab-inventory
 cd lab-inventory
 ```
 
 ### 方法2：使用 SCP 上传
 ```bash
 # 在本地Windows执行（PowerShell）
-scp -r .\no1_express\ root@你的服务器IP:/var/www/lab-inventory
+scp -r .\no1_express\ root@106.52.20.209:/var/www/lab-inventory
 ```
 
 ### 方法3：使用 FTP 工具
@@ -112,7 +188,7 @@ chmod 755 public/avatar
 ```
 
 ### 3. 修改 CORS 配置
-编辑 `app.js`，添加你的服务器域名：
+编辑 `app.js`，添加你的服务器 IP 地址：
 
 ```javascript
 app.use(cros({
@@ -120,8 +196,8 @@ app.use(cros({
         'http://localhost:10086',
         'http://192.168.67.48:10086',
         /^http:\/\/192\.168\.\d+\.\d+:10086$/,
-        'http://你的服务器IP:前端端口',  // 添加这行
-        'http://你的域名:前端端口'       // 如果有域名，添加这行
+        'http://106.52.20.209:前端端口',     // 添加服务器 IP
+        'http://你的域名:前端端口'           // 如果有域名，添加这行
     ],
     credentials: true
 }))
@@ -181,7 +257,7 @@ sudo nano /etc/nginx/sites-available/lab-inventory
 ```nginx
 server {
     listen 80;
-    server_name 你的域名或IP;
+    server_name 106.52.20.209;  # 或使用域名
 
     # API 代理
     location /api {
@@ -283,7 +359,11 @@ sudo netstat -tlnp | grep 3000
 
 ### 测试 API
 ```bash
+# 本地测试
 curl http://localhost:3000/user/login
+
+# 外部测试（使用服务器公网 IP）
+curl http://106.52.20.209:3000/user/login
 ```
 
 ---
