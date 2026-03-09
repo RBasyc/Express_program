@@ -1,4 +1,5 @@
-const { Inventory } = require('../../models/index.js');
+const { Inventory, User } = require('../../models/index.js');
+const Transaction = require('../../models/TransactionModel/TransactionModel.js');
 
 const inventoryServices = {
     // 获取库存列表
@@ -86,7 +87,7 @@ const inventoryServices = {
                 ...data,
                 updatedBy: userId
             },
-            { returnDocument: 'after', new: true }
+            { returnDocument: 'after' }
         ).populate('createdBy', 'nickName realName')
             .populate('updatedBy', 'nickName realName');
 
@@ -175,8 +176,8 @@ const inventoryServices = {
         return { success: true, data: item };
     },
 
-    // 批量更新库存数量
-    updateQuantity: async (id, quantity, userId, labName) => {
+    // 批量更新库存数量（支持增加/减少操作，并创建流水记录）
+    updateQuantity: async (id, quantity, operation, userId, labName) => {
         const item = await Inventory.findById(id);
         if (!item) {
             return { success: false, message: '耗材不存在' };
@@ -187,16 +188,66 @@ const inventoryServices = {
             return { success: false, message: '无权修改其他实验室的耗材' };
         }
 
-        if (quantity < 0) {
-            return { success: false, message: '库存数量不能为负数' };
+        if (quantity <= 0) {
+            return { success: false, message: '操作数量必须大于0' };
         }
 
-        item.quantity = quantity;
-        item.updatedBy = userId;
-        item.updateStatus();
-        await item.save();
+        // 获取用户信息（用户名和联系方式）
+        const user = await User.findById(userId);
+        if (!user) {
+            return { success: false, message: '用户不存在' };
+        }
 
-        return { success: true, data: item };
+        const userName = user.nickName || user.realName || '未知用户';
+        const contact = user.phone || user.email || '未提供联系方式';
+
+        // 获取当前库存
+        const quantityBefore = item.quantity;
+        let quantityAfter = quantityBefore;
+        let transactionQuantity = quantity;
+        let transactionType = '';
+
+        // 根据操作类型计算库存变化
+        if (operation === 'add') {
+            // 归还入库
+            quantityAfter = quantityBefore + quantity;
+            transactionType = 'return_in';
+        } else if (operation === 'subtract') {
+            // 消耗出库
+            if (quantityBefore < quantity) {
+                return { success: false, message: `库存不足：当前库存 ${quantityBefore}，需要 ${quantity}` };
+            }
+            quantityAfter = quantityBefore - quantity;
+            transactionType = 'consume_out';
+            transactionQuantity = -quantity;
+        }
+
+        // 使用 MongoDB 原子操作更新库存
+        const updatedItem = await Inventory.findOneAndUpdate(
+            { _id: id },
+            {
+                $inc: { quantity: transactionQuantity },
+                updatedBy: userId
+            },
+            { returnDocument: 'after' }
+        ).populate('createdBy', 'nickName realName')
+          .populate('updatedBy', 'nickName realName');
+
+        // 创建流水记录（包含用户名和联系方式）
+        await Transaction.create({
+            inventoryId: id,
+            type: transactionType,
+            quantity: transactionQuantity,
+            quantityBefore,
+            quantityAfter: updatedItem.quantity,
+            operator: userId,
+            userName,
+            contact,
+            operationTime: new Date(),
+            labName
+        });
+
+        return { success: true, data: updatedItem };
     },
 
     // 获取统计数据

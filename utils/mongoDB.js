@@ -1,8 +1,10 @@
 const mongoose = require('mongoose')
 const createConnection = async () => {
     try {
+        // await mongoose.connect('mongodb://mongo_basyc:mongo_basyc@106.52.20.209:27017/test?authSource=admin', {
         await mongoose.connect('mongodb://localhost:27017/test', {
         })
+
         console.log('成功连接到数据库')
     } catch (error) {
         console.error('貌似出了些问题:', error)

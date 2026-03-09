@@ -77,7 +77,7 @@ const labServices = {
             const updatedLab = await Lab.findOneAndUpdate(
                 { labName },
                 updateData,
-                { returnDocument: 'after', new: true }
+                { returnDocument: 'after' }
             );
 
             return { success: true, data: updatedLab, message: '更新成功' };

@@ -7,12 +7,13 @@ const mongoDB = require('./utils/mongoDB')
 mongoDB.createConnection()
 
 // 导入模型以确保 mongoose 正确注册
-const { User, Inventory, Lab } = require('./models/index')
+const { User, Inventory, Lab, Transaction } = require('./models/index')
 
 const UserRouter = require('./routes/UserRoute/UserRoute')
 const UploadRouter = require('./routes/UserRoute/UploadRouter')
 const InventoryRouter = require('./routes/InventoryRoute/InventoryRoute')
 const LabRouter = require('./routes/LabRoute/LabRoute')
+const TransactionRouter = require('./routes/TransactionRoute/TransactionRoute')
 
 app.use(express.json())
 app.use(cros({
@@ -75,6 +76,7 @@ app.use('/user', UserRouter)
 app.use('/upload', UploadRouter)
 app.use('/adminapi/inventory', InventoryRouter)
 app.use('/lab', LabRouter)
+app.use('/adminapi/transaction', TransactionRouter)
 
 app.use(function (req, res, next) {
     const err = new Error('Not Found')

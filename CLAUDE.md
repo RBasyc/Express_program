@@ -41,14 +41,16 @@ models/          (Mongoose schemas, static methods)
 ### Key Modules
 
 **Models** (`models/`):
-- `UserModel` - User accounts with labName (required field)
+- `UserModel` - User accounts with labName (required field), includes nickName, realName, phone, email
 - `InventoryModel` - Inventory items with automatic status management
 - `LabModel` - Laboratory definitions
+- `TransactionModel` - Stock operation records with audit trail (userName, contact, operationTime)
 
 **Routes** (`routes/`):
 - `UserRoute` - Authentication (`/user/*`)
 - `InventoryRoute` - Inventory management (`/adminapi/inventory/*`)
 - `LabRoute` - Laboratory management (`/lab/*`)
+- `TransactionRoute` - Stock transaction records (`/adminapi/transaction/*`)
 
 **Important:** All models are exported from `models/index.js` and must be imported in `app.js` before routes to ensure proper Mongoose registration.
 
@@ -211,3 +213,65 @@ Valid categories: `'试剂'`, `'耗材'`, `'仪器'`, `'其他'`
 - `'expired'` - Past expiry date
 - `'expiring_soon'` - Expiring within 30 days
 - `'out_of_stock'` - Zero quantity
+
+## Stock Operations
+
+### Primary Interface: PUT /adminapi/inventory/quantity/:id
+
+**Frontend uses this endpoint** (`pages/inventory/inventory-record/`) for all stock operations:
+
+```http
+PUT /adminapi/inventory/quantity/:id
+{
+  "quantity": 5,          // Required: operation amount
+  "operation": "add"      // Required: "add" (return_in) or "subtract" (consume_out)
+}
+```
+
+**Backend Behavior:**
+- Uses atomic `$inc` operation for concurrency safety
+- Automatically creates Transaction record with:
+  - `userName` - from User.nickName or User.realName
+  - `contact` - from User.phone or User.email
+  - `operationTime` - timestamp of operation
+- Checks stock availability for subtract operations
+
+### Transaction Model Fields
+
+```javascript
+{
+  inventoryId: ObjectId,      // Reference to Inventory
+  type: String,               // purchase_in, return_in, consume_out, use_out
+  quantity: Number,           // Positive for in, negative for out
+  quantityBefore: Number,
+  quantityAfter: Number,
+  remark: String,
+  operator: ObjectId,         // User ID
+  userName: String,           // User's nickName or realName
+  contact: String,            // User's phone or email
+  operationTime: Date,        // Operation timestamp
+  labName: String             // Laboratory name for isolation
+}
+```
+
+**Note:** Transaction model does NOT use `timestamps: true`. Only `operationTime` is stored.
+
+## Mongoose 9.x API Patterns
+
+**Important:** Use `returnDocument: 'after'` instead of deprecated `new: true`:
+
+```javascript
+// ✅ Correct (Mongoose 9.x)
+const result = await Model.findOneAndUpdate(
+  { _id: id },
+  updateData,
+  { returnDocument: 'after' }  // Returns updated document
+)
+
+// ❌ Deprecated (causes warnings)
+const result = await Model.findOneAndUpdate(
+  { _id: id },
+  updateData,
+  { new: true }  // Deprecated in Mongoose 9.x
+)
+```

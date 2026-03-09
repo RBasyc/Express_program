@@ -303,7 +303,7 @@ const InventoryController = {
             const labName = payload?.labName;
 
             const { id } = req.params;
-            const { quantity } = req.body;
+            const { quantity, operation } = req.body;
 
             if (typeof quantity !== 'number') {
                 return res.status(400).send({
@@ -312,7 +312,14 @@ const InventoryController = {
                 });
             }
 
-            const result = await inventoryServices.updateQuantity(id, quantity, userId, labName);
+            if (!operation || !['add', 'subtract'].includes(operation)) {
+                return res.status(400).send({
+                    errCode: '-1',
+                    errorInfo: '操作类型只能是 add(增加) 或 subtract(减少)'
+                });
+            }
+
+            const result = await inventoryServices.updateQuantity(id, quantity, operation, userId, labName);
 
             if (!result.success) {
                 return res.status(400).send({
