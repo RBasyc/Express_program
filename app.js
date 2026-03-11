@@ -3,6 +3,9 @@ const app = express()
 const cros = require('cors')
 const port = 3000
 
+// 加载环境变量配置
+const config = require('./utils/config')
+
 const mongoDB = require('./utils/mongoDB')
 mongoDB.createConnection()
 
@@ -14,6 +17,7 @@ const UploadRouter = require('./routes/UserRoute/UploadRouter')
 const InventoryRouter = require('./routes/InventoryRoute/InventoryRoute')
 const LabRouter = require('./routes/LabRoute/LabRoute')
 const TransactionRouter = require('./routes/TransactionRoute/TransactionRoute')
+const AiChatRouter = require('./routes/AiChatRoute/AiChatRoute')
 
 app.use(express.json())
 app.use(cros({
@@ -77,6 +81,7 @@ app.use('/upload', UploadRouter)
 app.use('/adminapi/inventory', InventoryRouter)
 app.use('/lab', LabRouter)
 app.use('/adminapi/transaction', TransactionRouter)
+app.use('/ai', AiChatRouter)
 
 app.use(function (req, res, next) {
     const err = new Error('Not Found')
