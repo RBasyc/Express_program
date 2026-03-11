@@ -1,9 +1,9 @@
 const mongoose = require('mongoose')
 const createConnection = async () => {
     try {
-        // await mongoose.connect('mongodb://mongo_basyc:mongo_basyc@106.52.20.209:27017/test?authSource=admin', {
-        await mongoose.connect('mongodb://localhost:27017/test', {
-        })
+        // 从环境变量读取 MongoDB 连接字符串，或使用默认本地连接
+        const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/test';
+        await mongoose.connect(mongoUri);
 
         console.log('成功连接到数据库')
     } catch (error) {

@@ -4,6 +4,10 @@
  * 1. 后端服务已启动 (npm start)
  * 2. MongoDB 正在运行
  * 3. 已有有效的用户账号
+ *
+ * 测试凭证通过环境变量配置：
+ * - TEST_USERNAME: 测试用户名
+ * - TEST_PASSWORD: 测试密码
  */
 
 // 如果你使用的 Node 版本较低，可能需要安装 node-fetch
@@ -11,6 +15,10 @@
 
 const testTransaction = async () => {
     const baseURL = 'http://localhost:3000';
+
+    // 从环境变量读取测试凭证，或使用占位符
+    const testUsername = process.env.TEST_USERNAME || 'YOUR_USERNAME';
+    const testPassword = process.env.TEST_PASSWORD || 'YOUR_PASSWORD';
 
     console.log('开始测试出入库功能...\n');
 
@@ -21,8 +29,8 @@ const testTransaction = async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                nickName: '333',  // 👈 请替换为你的用户名
-                password: '123456'   // 👈 请替换为你的密码
+                nickName: testUsername,
+                password: testPassword
             })
         });
 

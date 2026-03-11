@@ -93,12 +93,28 @@ mongod
 
 ## 配置
 
-默认配置如下（可在 `mongoDB.js` 中修改）：
+### 1. 环境变量配置
+
+复制 `.env.example` 为 `.env` 并配置：
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env` 文件，设置以下配置：
+
+- **MONGODB_URI**: MongoDB 连接字符串（默认：`mongodb://localhost:27017/test`）
+- **JWT_SECRET**: JWT 签名密钥（生产环境必须使用强密钥）
+- **DEEPSEEK_API_KEY**: DeepSeek AI API 密钥（可选，用于 AI 聊天功能）
+
+### 2. 默认配置
+
+如未配置环境变量，将使用以下默认值：
 
 - **数据库地址**: mongodb://localhost:27017
 - **数据库名称**: test
 - **服务端口**: 3000
-- **JWT 密钥**: basyc
+- **JWT 密钥**: dev-secret-do-not-use-in-production（仅用于开发）
 
 ## 使用
 
