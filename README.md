@@ -4,23 +4,36 @@
 
 ## 功能特性
 
-- 用户认证与授权
-  - 用户登录功能
-  - JWT（JSON Web Token）基于的身份验证
-  - Token 自动刷新机制
-  - 实验室隔离（多实验室数据隔离）
-- 库存管理
-  - 耗材增删改查
-  - 分页查询与筛选
-  - 关键词搜索
-  - 扫码快速查询
-  - 库存预警（过期、低库存等）
-  - 库存统计分析
-  - 自动状态更新
-- 数据持久化与架构
-  - MongoDB 数据持久化
-  - MVC 架构模式
-  - CORS 跨域支持
+### 用户认证与授权
+- 用户登录与注册
+- JWT（JSON Web Token）基于的身份验证
+- Token 自动刷新机制
+- 实验室隔离（多实验室数据隔离）
+
+### 库存管理
+- 耗材增删改查
+- 分页查询与筛选
+- 关键词搜索
+- 扫码快速查询
+- 库存预警（过期、低库存等）
+- 库存统计分析
+- 自动状态更新
+- **库存流水记录** - 完整的出入库操作审计
+
+### 实验室管理
+- 实验室信息管理
+- 实验室搜索与查询
+- 实验室创建与审核
+
+### AI 智能助手
+- 集成 DeepSeek AI
+- 自然语言库存查询
+- 智能数据分析与建议
+
+### 数据持久化与架构
+- MongoDB 数据持久化
+- MVC 三层架构模式
+- CORS 跨域支持
 
 ## 技术栈
 
@@ -30,6 +43,7 @@
 - **Mongoose 9.2.1** - MongoDB ODM
 - **jsonwebtoken 9.0.3** - JWT 实现
 - **cors 2.8.6** - 跨域资源共享中间件
+- **axios 1.7.9** - HTTP 客户端（AI API 调用）
 
 ## 项目结构
 
@@ -37,29 +51,55 @@
 no1_express/
 ├── app.js                          # 应用入口文件
 ├── package.json                    # 项目配置和依赖
-├── mongoDB.js                      # MongoDB 连接工具
+├── .env.example                    # 环境变量模板
 ├── routes/                         # 路由层
 │   ├── UserRoute/
 │   │   └── UserRoute.js           # 用户路由
-│   └── InventoryRoute/
-│       └── InventoryRoute.js      # 库存路由
+│   ├── InventoryRoute/
+│   │   └── InventoryRoute.js      # 库存路由
+│   ├── LabRoute/
+│   │   └── LabRoute.js            # 实验室路由
+│   ├── TransactionRoute/
+│   │   └── TransactionRoute.js   # 库存流水路由
+│   └── AiChatRoute/
+│       └── AiChatRoute.js         # AI 聊天路由
 ├── controller/                     # 控制器层
 │   ├── UserController/
 │   │   └── UserController.js      # 用户控制器
-│   └── InventoryController/
-│       └── InventoryController.js # 库存控制器
+│   ├── InventoryController/
+│   │   └── InventoryController.js # 库存控制器
+│   ├── LabController/
+│   │   └── LabController.js       # 实验室控制器
+│   ├── TransactionController/
+│   │   └── TransactionController.js # 流水控制器
+│   └── AiChatController/
+│       └── AiChatController.js    # AI 控制器
 ├── services/                       # 服务层
 │   ├── UserServices/
 │   │   └── UserServices.js        # 用户服务
-│   └── InventoryServices/
-│       └── InventoryServices.js   # 库存服务
+│   ├── InventoryServices/
+│   │   └── InventoryServices.js   # 库存服务
+│   ├── LabServices/
+│   │   └── LabServices.js         # 实验室服务
+│   ├── TransactionServices/
+│   │   └── TransactionServices.js # 流水服务
+│   └── AiChatServices/
+│       ├── AiChatServices.js      # AI 聊天服务
+│       └── DeepSeekService.js     # DeepSeek API 封装
 ├── models/                         # 数据模型层
 │   ├── UserModel/
 │   │   └── UserModel.js           # 用户模型
-│   └── InventoryModel/
-│       └── InventoryModel.js      # 库存模型
+│   ├── InventoryModel/
+│   │   └── InventoryModel.js      # 库存模型
+│   ├── LabModel/
+│   │   └── LabModel.js            # 实验室模型
+│   └── TransactionModel/
+│       └── TransactionModel.js    # 流水模型
 └── utils/                          # 工具类
-    └── JWT.js                      # JWT 工具函数
+    ├── JWT.js                      # JWT 工具函数
+    ├── mongoDB.js                  # MongoDB 连接工具
+    ├── config.js                   # 配置管理
+    └── promptTemplates.js          # AI 提示词模板
 ```
 
 ## 前置要求
@@ -104,8 +144,11 @@ cp .env.example .env
 编辑 `.env` 文件，设置以下配置：
 
 - **MONGODB_URI**: MongoDB 连接字符串（默认：`mongodb://localhost:27017/test`）
-- **JWT_SECRET**: JWT 签名密钥（生产环境必须使用强密钥）
+- **JWT_SECRET**: JWT 签名密钥（生产环境必须使用强密钥，至少 32 位）
 - **DEEPSEEK_API_KEY**: DeepSeek AI API 密钥（可选，用于 AI 聊天功能）
+- **DEEPSEEK_API_BASE_URL**: DeepSeek API 地址（可选）
+- **DEEPSEEK_MODEL**: 使用的模型（可选）
+- **DEEPSEEK_MAX_TOKENS**: 最大 token 数（可选）
 
 ### 2. 默认配置
 
@@ -114,12 +157,16 @@ cp .env.example .env
 - **数据库地址**: mongodb://localhost:27017
 - **数据库名称**: test
 - **服务端口**: 3000
-- **JWT 密钥**: dev-secret-do-not-use-in-production（仅用于开发）
+- **JWT 密钥**: dev-secret-do-not-use-in-production（仅用于开发，生产环境必须更改）
 
 ## 使用
 
-启动服务器：
+### 开发模式（带自动重载）
+```bash
+npm run dev
+```
 
+### 生产模式
 ```bash
 npm start
 ```
@@ -128,43 +175,62 @@ npm start
 
 ## API 端点
 
-### 用户登录
+### 用户认证
 
-**请求**
+#### 用户登录
 ```
-POST /adminapi/user/login
+POST /user/login
 Content-Type: application/json
 
 {
-  "username": "用户名",
+  "nickName": "用户名",
   "password": "密码"
 }
 ```
 
-**成功响应**
+#### 用户注册
 ```
-200 OK
-Authorization: <jwt_token>
+POST /user/register
+Content-Type: application/json
 
 {
-  "errCode": "0",
-  "errorInfo": "登录成功"
+  "nickName": "用户名",
+  "password": "密码",
+  "labName": "实验室名称"
 }
 ```
 
-**错误响应**
+#### 检查昵称是否可用
 ```
-400 Bad Request
+GET /user/check-nickname?nickName=用户名
+```
+
+### 实验室管理
+
+#### 搜索实验室
+```
+GET /lab/search?keyword=关键词
+```
+
+#### 获取实验室列表
+```
+GET /lab/list?page=1&pageSize=10
+```
+
+#### 创建实验室
+```
+POST /lab/create
+Content-Type: application/json
 
 {
-  "errCode": "-1",
-  "errorInfo": "用户名或密码错误"
+  "labName": "实验室名称",
+  "university": "所属大学",
+  "managerName": "负责人姓名",
+  "contact": "联系方式"
 }
 ```
 
----
-
-### 库存管理 API
+### 库存管理
 
 > 所有库存管理接口都需要在请求头中包含有效的 JWT token：
 > ```
@@ -172,8 +238,6 @@ Authorization: <jwt_token>
 > ```
 
 #### 1. 获取库存列表
-
-**请求**
 ```
 GET /adminapi/inventory/list?page=1&pageSize=10&category=试剂&keyword=测试
 ```
@@ -187,140 +251,32 @@ GET /adminapi/inventory/list?page=1&pageSize=10&category=试剂&keyword=测试
 | status | String | 否 | 状态筛选 |
 | keyword | String | 否 | 关键词搜索 |
 
-**响应**
-```json
-{
-  "errCode": "0",
-  "errorInfo": "success",
-  "data": {
-    "total": 150,
-    "items": [...],
-    "page": 1,
-    "pageSize": 10,
-    "totalPages": 15
-  }
-}
-```
-
 #### 2. 获取库存统计数据
-
-**请求**
 ```
 GET /adminapi/inventory/statistics
 ```
 
-**响应**
-```json
-{
-  "errCode": "0",
-  "errorInfo": "success",
-  "data": {
-    "total": 150,
-    "categories": {
-      "试剂": 45,
-      "耗材": 60,
-      "仪器": 30,
-      "其他": 15
-    }
-  }
-}
-```
-
 #### 3. 搜索耗材
-
-**请求**
 ```
 GET /adminapi/inventory/search?keyword=乙醇
 ```
 
-**响应**
-```json
-{
-  "errCode": "0",
-  "errorInfo": "success",
-  "data": {
-    "items": [...],
-    "total": 5
-  }
-}
-```
-
 #### 4. 扫码查询耗材
-
-**请求**
 ```
 GET /adminapi/inventory/by-code?code=RE001
 ```
 
-**响应**
-```json
-{
-  "errCode": "0",
-  "errorInfo": "success",
-  "data": {
-    "_id": "...",
-    "code": "RE001",
-    "name": "无水乙醇",
-    ...
-  }
-}
-```
-
 #### 5. 获取预警耗材列表
-
-**请求**
 ```
 GET /adminapi/inventory/alerts
 ```
 
-**响应**
-```json
-{
-  "errCode": "0",
-  "errorInfo": "success",
-  "data": {
-    "items": [...],
-    "total": 10,
-    "alertGroups": {
-      "expired": [...],
-      "expiring_soon": [...],
-      "out_of_stock": [...],
-      "low_stock": [...]
-    },
-    "summary": {
-      "expired": 2,
-      "expiring_soon": 3,
-      "out_of_stock": 1,
-      "low_stock": 4
-    }
-  }
-}
-```
-
 #### 6. 获取耗材详情
-
-**请求**
 ```
 GET /adminapi/inventory/detail/:id
 ```
 
-**响应**
-```json
-{
-  "errCode": "0",
-  "errorInfo": "success",
-  "data": {
-    "_id": "...",
-    "name": "无水乙醇",
-    "code": "RE001",
-    ...
-  }
-}
-```
-
 #### 7. 添加耗材
-
-**请求**
 ```
 POST /adminapi/inventory/add
 Content-Type: application/json
@@ -351,8 +307,6 @@ Content-Type: application/json
 - price（单价）
 
 #### 8. 更新耗材
-
-**请求**
 ```
 PUT /adminapi/inventory/update/:id
 Content-Type: application/json
@@ -363,56 +317,151 @@ Content-Type: application/json
 }
 ```
 
-#### 9. 更新库存数量
-
-**请求**
+#### 9. 更新库存数量（出入库操作）
 ```
 PUT /adminapi/inventory/quantity/:id
 Content-Type: application/json
 
 {
-  "quantity": 15
+  "quantity": 5,
+  "operation": "add"
 }
 ```
 
-#### 10. 删除耗材
+**操作类型**
+- `add`: 入库操作
+- `subtract`: 出库操作
 
-**请求**
+#### 10. 删除耗材
 ```
 DELETE /adminapi/inventory/delete/:id
 ```
 
-### 受保护的路由
+### 库存流水记录
 
-所有库存管理端点都需要在请求头中包含有效的 JWT token：
-
+#### 获取流水列表
 ```
+GET /adminapi/transaction/list?page=1&pageSize=10
+```
+
+**查询参数**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | Number | 否 | 页码，默认 1 |
+| pageSize | Number | 否 | 每页数量，默认 10 |
+| type | String | 否 | 操作类型筛选 |
+| inventoryId | String | 否 | 关联耗材 ID |
+
+#### 获取流水统计
+```
+GET /adminapi/transaction/statistics
+```
+
+### AI 智能助手
+
+#### AI 聊天
+```
+POST /adminapi/ai/chat
+Content-Type: application/json
 Authorization: <token>
+
+{
+  "message": "查询实验室有哪些试剂即将过期？"
+}
 ```
 
-Token 会在每次有效请求后自动刷新。
+#### 获取 MCP 工具列表
+```
+GET /adminapi/ai/mcp/tools
+```
+
+## 数据模型
+
+### Inventory 状态值
+- `normal` - 正常
+- `low_stock` - 低库存
+- `expired` - 已过期
+- `expiring_soon` - 即将过期（30天内）
+- `out_of_stock` - 缺货
+
+### Transaction 流水类型
+- `purchase_in` - 采购入库
+- `return_in` - 退货入库
+- `consume_out` - 消耗出库
+- `use_out` - 使用出库
 
 ## 开发说明
 
-本系统采用 MVC 三层架构设计，实现了以下核心功能：
+### MVC 架构
+
+本系统采用 MVC 三层架构设计：
+
+```
+routes/          (定义端点，委托给控制器)
+  ↓
+controller/      (处理请求/响应，调用服务)
+  ↓
+services/        (业务逻辑，数据库操作)
+  ↓
+models/          (Mongoose 模式，静态方法)
+```
+
+### 实验室数据隔离
+
+**重要**：所有库存操作必须强制执行实验室隔离，使用 JWT payload 中的 `labName`。
+
+```javascript
+// 服务层模式
+const query = { /* 其他条件 */ };
+if (labName) {
+    query.labName = labName;  // 始终按 labName 过滤
+}
+```
+
+### Token 自动刷新
+
+每个有效的请求都会在响应 `Authorization` 头中返回一个新的 token。
+
+### 已实现功能
 
 - ✅ 用户认证与授权
-- ✅ 库存完整 CRUD 操作
+- ✅ 完整的库存 CRUD 操作
 - ✅ 实验室数据隔离
 - ✅ 智能库存状态管理（自动检测过期、低库存等）
 - ✅ 库存统计与分析
+- ✅ 库存流水记录与审计
+- ✅ 实验室管理
+- ✅ AI 智能助手集成
+- ✅ 环境变量配置
 
-### 可考虑扩展的功能
+## 安全建议
 
-- 用户注册功能
-- 密码加密（使用 bcrypt）
-- 密码重置
-- 基于角色的访问控制（RBAC）
-- 单元测试
-- 环境变量配置（使用 dotenv）
-- 日志记录（使用 winston）
-- 数据导入导出
-- 库存流水记录
+1. **生产环境必须更改 JWT_SECRET**
+   ```bash
+   # 生成强密钥
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+2. **启用密码加密**（使用 bcrypt）
+
+3. **配置 HTTPS**
+
+4. **限制 CORS 来源**
+
+5. **添加速率限制**
+
+## 测试
+
+运行库存流水功能测试：
+```bash
+node scripts/test-transaction.js
+```
+
+测试前需配置环境变量：
+```bash
+export TEST_USERNAME=your_username
+export TEST_PASSWORD=your_password
+```
 
 ## 许可证
 
@@ -422,6 +471,6 @@ Token 会在每次有效请求后自动刷新。
 
 RBasyc
 
-## 许可证
+---
 
-ISC
+**注意**：本系统仅用于学习和参考，生产环境使用前请务必完善安全措施。
