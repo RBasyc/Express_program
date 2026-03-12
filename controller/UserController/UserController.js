@@ -71,7 +71,21 @@ const UserController = {
             return res.status(400).send({ errCode: '-1', errorInfo: result.message })
         }
         else {
-            res.status(200).send({ errCode: '0', errorInfo: result.message, updatedUser: result.data })
+            // 更新成功后，生成新的 token（包含新的 labName）
+            const updatedUser = result.data;
+            const newToken = JWT.generate({
+                _id: updatedUser._id,
+                nickName: updatedUser.nickName,
+                labName: updatedUser.labName
+            }, "1d");
+
+            res.header("Authorization", newToken);
+            res.status(200).send({
+                errCode: '0',
+                errorInfo: result.message,
+                updatedUser: updatedUser,
+                token: newToken
+            });
         }
     },
 
