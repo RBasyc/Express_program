@@ -1,6 +1,6 @@
 # 实验室耗材管理系统 API
 
-基于 Node.js 和 Express.js 构建的实验室耗材管理系统，使用 JWT 进行身份验证，MongoDB 作为数据库。
+基于 Node.js 和 Express.js 构建的实验室耗材管理系统后端服务，使用 JWT 进行身份验证，MongoDB 作为数据库。
 
 ## 功能特性
 
@@ -29,6 +29,7 @@
 - 集成 DeepSeek AI
 - 自然语言库存查询
 - 智能数据分析与建议
+- 支持 MCP 工具调用
 
 ### 数据持久化与架构
 - MongoDB 数据持久化
@@ -44,6 +45,36 @@
 - **jsonwebtoken 9.0.3** - JWT 实现
 - **cors 2.8.6** - 跨域资源共享中间件
 - **axios 1.7.9** - HTTP 客户端（AI API 调用）
+
+## 服务架构
+
+本系统采用**双服务架构**：
+
+### 主服务 (端口 3000)
+- 用户认证与授权
+- 库存 CRUD 操作
+- 出入库流水管理
+- 实验室管理
+- AI 聊天接口
+
+### MCP 服务 (端口 3001) - 独立部署
+- AI 工具接口
+- 库存智能查询
+- 数据分析服务
+
+```
+┌─────────────┐
+│   前端/H5   │
+└──────┬──────┘
+       │
+  ┌────┴────┐
+  │         │
+  ▼         ▼
+┌──────┐  ┌──────┐
+│3000  │  │ 3001 │
+│主服务│  │ MCP  │
+└──────┘  └──────┘
+```
 
 ## 项目结构
 
@@ -149,8 +180,22 @@ cp .env.example .env
 - **DEEPSEEK_API_BASE_URL**: DeepSeek API 地址（可选）
 - **DEEPSEEK_MODEL**: 使用的模型（可选）
 - **DEEPSEEK_MAX_TOKENS**: 最大 token 数（可选）
+- **USE_MCP_QUERY**: 是否启用 MCP 查询（默认：false）
+- **MCP_HTTP_URL**: MCP HTTP 服务器地址（默认：`http://localhost:3001`）
 
-### 2. 默认配置
+### 2. MCP 服务配置（可选）
+
+如果需要使用 AI 智能查询功能，需要启动 MCP 服务：
+
+```bash
+cd ../mcp
+npm install
+npm start
+```
+
+MCP 服务将在 `http://localhost:3001` 上运行。
+
+### 3. 默认配置
 
 如未配置环境变量，将使用以下默认值：
 
@@ -171,7 +216,21 @@ npm run dev
 npm start
 ```
 
-服务器将在 http://localhost:3000 上运行。
+主服务将在 http://localhost:3000 上运行。
+
+### 启动完整系统（主服务 + MCP 服务）
+
+**终端 1 - 启动主服务**：
+```bash
+cd no1_express
+npm run dev
+```
+
+**终端 2 - 启动 MCP 服务**（可选）：
+```bash
+cd mcp
+npm start
+```
 
 ## API 端点
 
@@ -253,7 +312,7 @@ GET /adminapi/inventory/list?page=1&pageSize=10&category=试剂&keyword=测试
 
 #### 2. 获取库存统计数据
 ```
-GET /adminapi/inventory/statistics
+GET /adminapi/inventory/stats
 ```
 
 #### 3. 搜索耗材
@@ -361,18 +420,39 @@ GET /adminapi/transaction/statistics
 
 #### AI 聊天
 ```
-POST /adminapi/ai/chat
+POST /ai/chat
 Content-Type: application/json
 Authorization: <token>
 
 {
-  "message": "查询实验室有哪些试剂即将过期？"
+  "message": "查询实验室有哪些试剂即将过期？",
+  "conversationHistory": []
 }
 ```
 
-#### 获取 MCP 工具列表
+**功能说明**：
+- 支持自然语言库存查询
+- 自动调用 MCP 工具获取数据
+- 返回结构化的 AI 回复
+
+## MCP 工具接口（独立服务）
+
+如果启动了 MCP 服务（端口 3001），可使用以下工具：
+
+| 工具端点 | 功能 | 参数 |
+|---------|------|------|
+| `/tools/inventory-summary` | 库存统计摘要 | `labName` |
+| `/tools/expired-items` | 已过期耗材 | `labName`, `limit` (默认5) |
+| `/tools/expiring-items` | 即将过期耗材 | `labName`, `days` (默认30), `limit` (默认10) |
+| `/tools/low-stock-items` | 库存不足耗材 | `labName` |
+| `/tools/out-of-stock-items` | 缺货耗材 | `labName` |
+| `/tools/search-inventory` | 搜索耗材 | `labName`, `keyword` |
+| `/tools/check-item` | 检查耗材可用性 | `labName`, `itemName` |
+| `/tools/purchase-suggestions` | 采购建议 | `labName` |
+
+**MCP 服务健康检查**：
 ```
-GET /adminapi/ai/mcp/tools
+GET /health
 ```
 
 ## 数据模型
@@ -432,6 +512,7 @@ if (labName) {
 - ✅ 库存流水记录与审计
 - ✅ 实验室管理
 - ✅ AI 智能助手集成
+- ✅ MCP 工具接口支持
 - ✅ 环境变量配置
 
 ## 安全建议
@@ -462,6 +543,76 @@ node scripts/test-transaction.js
 export TEST_USERNAME=your_username
 export TEST_PASSWORD=your_password
 ```
+
+## 部署建议
+
+### 生产环境配置
+
+1. **使用进程管理器**（如 PM2）：
+```bash
+npm install -g pm2
+pm2 start app.js --name lab-inventory-api
+pm2 startup
+pm2 save
+```
+
+2. **配置 Nginx 反向代理**：
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+3. **启用 HTTPS**（使用 Let's Encrypt）
+
+### Docker 部署（可选）
+
+```dockerfile
+FROM node:16-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+## 故障排查
+
+### 问题 1: MongoDB 连接失败
+```bash
+# 检查 MongoDB 是否运行
+# Windows
+net start MongoDB
+
+# macOS/Linux
+sudo systemctl status mongodb
+```
+
+### 问题 2: MCP 服务不可用
+```bash
+# 检查 MCP 服务状态
+curl http://localhost:3001/health
+
+# 查看日志
+cd ../mcp
+npm start
+```
+
+### 问题 3: AI 功能不工作
+- 检查 `DEEPSEEK_API_KEY` 是否配置
+- 检查 API Key 是否有效
+- 查看 AI 服务日志
 
 ## 许可证
 
