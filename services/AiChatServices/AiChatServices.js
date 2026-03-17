@@ -105,13 +105,124 @@ const aiChatServices = {
     },
 
     /**
-     * 分析用户意图（智能版）
+     * 分析用户意图（混合智能版 - 规则快速通道 + LLM 智能判断）
      */
     analyzeIntent: async (message) => {
         if (!message) {
-            return { needsInventoryData: false, intentType: 'unknown' };
+            return {
+                needsInventoryData: false,
+                intentType: 'unknown',
+                method: 'none'
+            };
         }
 
+        const lowerMessage = message.toLowerCase();
+
+        // ========== 第一步：规则快速通道 ==========
+        // 超级明确的查询，用规则（快速响应，避免 LLM 调用）
+
+        const fastRules = [
+            {
+                keywords: ['库存概况', '库存总计', '库存多少项', '有多少种耗材'],
+                intent: 'inventory_check',
+                queryType: 'summary',
+                needsInventoryData: true,
+                confidence: 1.0
+            },
+            {
+                keywords: ['已过期', '已经过期', '过期了'],
+                intent: 'expiring_check',
+                queryType: 'expired',
+                needsInventoryData: true,
+                confidence: 1.0
+            },
+            {
+                keywords: ['缺货', '没有库存', '用完', '用光了'],
+                intent: 'stock_issue',
+                queryType: 'out_of_stock',
+                needsInventoryData: true,
+                confidence: 1.0
+            },
+            {
+                keywords: ['不够', '不足', '缺少', '不够用'],
+                intent: 'stock_issue',
+                queryType: 'low_stock',
+                needsInventoryData: true,
+                confidence: 1.0
+            },
+            {
+                keywords: ['采购', '买', '补货', '订购', '进货'],
+                intent: 'purchase_request',
+                queryType: 'purchase',
+                needsInventoryData: true,
+                confidence: 1.0
+            },
+            {
+                keywords: ['实验计划', '准备实验', '要做实验', '要做', '需要'],
+                intent: 'experiment_plan',
+                queryType: 'experiment_plan',
+                needsInventoryData: true,
+                confidence: 1.0
+            }
+        ];
+
+        // 检查快速规则
+        for (const rule of fastRules) {
+            if (rule.keywords.some(keyword => lowerMessage.includes(keyword))) {
+                console.log(`✅ 规则快速匹配: ${rule.intent} (confidence: ${rule.confidence})`);
+                return {
+                    needsInventoryData: rule.needsInventoryData,
+                    intentType: rule.intent,
+                    queryType: rule.queryType,
+                    confidence: rule.confidence,
+                    method: 'rule'
+                };
+            }
+        }
+
+        // ========== 第二步：LLM 智能判断 ==========
+        // 复杂或模糊的意图，使用 LLM（智能判断）
+
+        console.log('🤖 触发 LLM 意图检测...');
+        const llmResult = await DeepSeekService.detectIntentWithLLM(message);
+
+        if (llmResult.success) {
+            console.log(`✅ LLM 意图检测: ${llmResult.intent} (confidence: ${llmResult.confidence})`);
+            console.log(`   理由: ${llmResult.reasoning}`);
+            if (llmResult.mentionedItems.length > 0) {
+                console.log(`   提及的耗材: ${llmResult.mentionedItems.join(', ')}`);
+            }
+
+            // 将 LLM 意图映射到 queryType
+            const queryTypeMapping = {
+                'experiment_plan': 'experiment_plan',
+                'inventory_check': 'summary',
+                'expiring_check': 'expiring',
+                'stock_issue': 'low_stock',
+                'purchase_request': 'purchase',
+                'general_chat': 'none'
+            };
+
+            return {
+                needsInventoryData: llmResult.intent !== 'general_chat',
+                intentType: llmResult.intent,
+                queryType: queryTypeMapping[llmResult.intent] || 'summary',
+                confidence: llmResult.confidence,
+                mentionedItems: llmResult.mentionedItems,
+                reasoning: llmResult.reasoning,
+                method: 'llm'
+            };
+        } else {
+            console.warn('⚠️ LLM 意图检测失败，回退到规则判断:', llmResult.error);
+            // LLM 失败时回退到基础规则
+            return aiChatServices.fallbackRuleBasedIntent(message);
+        }
+    },
+
+    /**
+     * 回退规则：基础规则判断（当 LLM 不可用时）
+     */
+    fallbackRuleBasedIntent: (message) => {
         const lowerMessage = message.toLowerCase();
         let intentType = 'general_chat';
         let needsInventoryData = false;
@@ -130,50 +241,38 @@ const aiChatServices = {
             }
         });
 
-        // 意图分类（按优先级）
-        // 优先检测实验计划意图
-        if (lowerMessage.includes('实验计划') || lowerMessage.includes('要做') || lowerMessage.includes('准备实验') ||
-            lowerMessage.includes('需要') && (lowerMessage.includes('实验') || mentionedItems.length > 0)) {
+        // 基础意图分类
+        if (lowerMessage.includes('实验') || lowerMessage.includes('计划')) {
             queryType = 'experiment_plan';
             needsInventoryData = true;
             intentType = 'experiment_plan';
-        } else if (lowerMessage.includes('库存') && (lowerMessage.includes('概况') || lowerMessage.includes('总计') || lowerMessage.includes('多少项'))) {
+        } else if (lowerMessage.includes('库存')) {
             queryType = 'summary';
             needsInventoryData = true;
-        } else if (lowerMessage.includes('过期') && (lowerMessage.includes('已过') || lowerMessage.includes('已经'))) {
-            queryType = 'expired';
-            needsInventoryData = true;
-        } else if (lowerMessage.includes('过期') && (lowerMessage.includes('即将') || lowerMessage.includes('快要') || lowerMessage.includes('快'))) {
-            queryType = 'expiring';
-            needsInventoryData = true;
+            intentType = 'inventory_check';
         } else if (lowerMessage.includes('过期')) {
             queryType = 'expiring';
             needsInventoryData = true;
-        } else if (lowerMessage.includes('缺货') || lowerMessage.includes('没有') || lowerMessage.includes('用完')) {
-            queryType = 'out_of_stock';
+            intentType = 'expiring_check';
+        } else if (lowerMessage.includes('还剩') || lowerMessage.includes('有多少')) {
+            queryType = 'check';
             needsInventoryData = true;
-        } else if (lowerMessage.includes('不够') || lowerMessage.includes('不足') || lowerMessage.includes('缺少')) {
-            queryType = 'low_stock';
-            needsInventoryData = true;
-        } else if (lowerMessage.includes('采购') || lowerMessage.includes('买') || lowerMessage.includes('补货')) {
-            queryType = 'purchase';
-            needsInventoryData = true;
+            intentType = 'inventory_check';
         } else if (mentionedItems.length > 0) {
             queryType = 'specific';
             needsInventoryData = true;
-        } else if (lowerMessage.includes('还剩') || lowerMessage.includes('有多少') || lowerMessage.includes('够不够')) {
-            queryType = 'check';
-            needsInventoryData = true;
-        } else if (lowerMessage.includes('库存') || lowerMessage.includes('实验')) {
-            queryType = 'summary';
-            needsInventoryData = true;
+            intentType = 'inventory_check';
         }
+
+        console.log(`📋 回退规则判断: ${intentType} (queryType: ${queryType})`);
 
         return {
             needsInventoryData,
             intentType,
             queryType,
-            mentionedItems
+            mentionedItems,
+            confidence: 0.5,
+            method: 'fallback_rule'
         };
     },
 

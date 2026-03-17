@@ -68,19 +68,18 @@ const ExperimentPlanController = {
             const userId = payload?._id;
             const labName = payload?.labName;
 
-            const { title, experimentType, experimentDate, description, itemsNeeded, remarks, responsiblePerson } = req.body;
+            const { title, experimentDate, description, itemsNeeded, remarks, responsiblePerson } = req.body;
 
             // 验证必填字段
-            if (!title || !experimentType || !experimentDate) {
+            if (!title || !experimentDate) {
                 return res.status(400).send({
                     errCode: '-1',
-                    errorInfo: '实验标题、类型和日期为必填项'
+                    errorInfo: '实验标题和日期为必填项'
                 });
             }
 
             const result = await experimentPlanServices.add({
                 title,
-                experimentType,
                 experimentDate,
                 description,
                 itemsNeeded: itemsNeeded || [],

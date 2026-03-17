@@ -50,8 +50,23 @@ const experimentPlanSchema = new mongoose.Schema({
         },
         // 需求数量
         quantity: {
-            type: String,
+            type: Number,
             required: true,
+            min: [1, '数量必须大于0']
+        },
+        // 单位
+        unit: {
+            type: String,
+            trim: true
+        },
+        // 规格
+        specification: {
+            type: String,
+            trim: true
+        },
+        // 分类
+        category: {
+            type: String,
             trim: true
         },
         // 库存状态

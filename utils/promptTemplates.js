@@ -203,8 +203,65 @@ function enhancePromptForIntent(intent, context = {}) {
     return enhancement;
 }
 
+/**
+ * Intent Detection Prompt - 智能意图识别
+ * 用于判断用户查询的意图类型
+ */
+const INTENT_DETECTION_PROMPT = `你是一个意图识别专家，负责分析用户的实验室耗材管理问题。
+
+请判断用户的意图属于以下哪一类：
+
+## 意图类别
+1. **experiment_plan** - 实验计划解析
+   - 关键词：实验计划、耗材清单、解析实验、准备实验
+   - 特征：描述实验内容、列出需要的耗材
+
+2. **inventory_check** - 库存查询
+   - 关键词：库存、还剩、有多少、够不够
+   - 特征：询问库存数量、状态
+
+3. **expiring_check** - 过期查询
+   - 关键词：过期、有效期、保质期
+   - 特征：关心耗材是否过期或即将过期
+
+4. **stock_issue** - 库存问题
+   - 关键词：缺货、不够、不足、用完
+   - 特征：耗材数量不够或已经用完
+
+5. **purchase_request** - 采购请求
+   - 关键词：采购、买、补货、订购
+   - 特征：需要购买耗材
+
+6. **general_chat** - 普通对话
+   - 特征：简单问答、日常对话、打招呼
+
+## 输出格式
+请以 JSON 格式返回判断结果：
+\`\`\`json
+{
+  "intent": "意图类别",
+  "confidence": 0.0-1.0,
+  "reasoning": "判断理由",
+  "mentioned_items": ["提到的耗材名称"]
+}
+\`\`\`
+
+注意：
+- confidence 表示判断的置信度（0.0-1.0）
+- reasoning 简要说明为什么这样判断
+- mentioned_items 提取用户提到的耗材名称`;
+
+/**
+ * 获取意图检测提示词
+ * @returns {string} 意图检测提示词
+ */
+function getIntentDetectionPrompt() {
+    return INTENT_DETECTION_PROMPT;
+}
+
 module.exports = {
     getSystemPrompt,
     getSimplePrompt,
-    enhancePromptForIntent
+    enhancePromptForIntent,
+    getIntentDetectionPrompt
 };

@@ -1,12 +1,16 @@
 const express = require('express');
 const InventoryRouter = express.Router();
 const InventoryController = require('../../controller/InventoryController/InventoryController.js');
+const InventoryBatchMatchController = require('../../controller/InventoryController/InventoryBatchMatchController.js');
 
 // 获取库存列表 (支持分页、分类筛选、状态筛选、关键词搜索)
 InventoryRouter.get('/list', InventoryController.list);
 
 // 搜索耗材
 InventoryRouter.get('/search', InventoryController.search);
+
+// 批量匹配耗材（用于 AI 实验计划）✅ 新增
+InventoryRouter.post('/batch-match', InventoryBatchMatchController.batchMatchItems);
 
 // 扫码查询耗材（根据编号查询第一条匹配的记录）
 InventoryRouter.get('/by-code', InventoryController.getByCode);

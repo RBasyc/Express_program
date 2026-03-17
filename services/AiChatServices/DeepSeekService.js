@@ -201,6 +201,70 @@ class DeepSeekService {
             return false;
         }
     }
+
+    /**
+     * 使用 LLM 进行智能意图检测
+     * @param {string} userMessage - 用户消息
+     * @returns {Promise<Object>} 意图检测结果
+     */
+    async detectIntentWithLLM(userMessage) {
+        const { getIntentDetectionPrompt } = require('../../utils/promptTemplates');
+
+        const messages = [
+            { role: 'system', content: getIntentDetectionPrompt() },
+            { role: 'user', content: userMessage }
+        ];
+
+        try {
+            const response = await this.chat(messages, {
+                temperature: 0.1, // 使用较低的温度以获得更一致的结果
+                maxTokens: 200
+            });
+
+            if (!response.success) {
+                return {
+                    success: false,
+                    error: response.error
+                };
+            }
+
+            // 解析 LLM 返回的 JSON
+            let parsedResult;
+            try {
+                const content = response.data.content;
+                const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) ||
+                                 content.match(/\{[\s\S]*\}/);
+
+                if (jsonMatch) {
+                    const jsonStr = jsonMatch[1] || jsonMatch[0];
+                    parsedResult = JSON.parse(jsonStr);
+                } else {
+                    throw new Error('无法从响应中提取 JSON');
+                }
+
+                return {
+                    success: true,
+                    intent: parsedResult.intent,
+                    confidence: parsedResult.confidence || 0.5,
+                    reasoning: parsedResult.reasoning || '',
+                    mentionedItems: parsedResult.mentioned_items || [],
+                    method: 'llm'
+                };
+            } catch (parseError) {
+                console.warn('解析 LLM 意图检测结果失败:', parseError.message);
+                return {
+                    success: false,
+                    error: '解析 LLM 响应失败'
+                };
+            }
+        } catch (error) {
+            console.error('LLM 意图检测失败:', error);
+            return {
+                success: false,
+                error: error.message || 'LLM 意图检测失败'
+            };
+        }
+    }
 }
 
 // 导出单例
