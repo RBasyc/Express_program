@@ -130,6 +130,13 @@ const aiChatServices = {
                 confidence: 1.0
             },
             {
+                keywords: ['在哪里', '位置', '存放', '放在哪', '放哪了'],
+                intent: 'location_query',
+                queryType: 'search',
+                needsInventoryData: true,
+                confidence: 1.0
+            },
+            {
                 keywords: ['已过期', '已经过期', '过期了'],
                 intent: 'expiring_check',
                 queryType: 'expired',
@@ -170,12 +177,18 @@ const aiChatServices = {
         for (const rule of fastRules) {
             if (rule.keywords.some(keyword => lowerMessage.includes(keyword))) {
                 console.log(`✅ 规则快速匹配: ${rule.intent} (confidence: ${rule.confidence})`);
+
+                // 提取提到的耗材名称
+                const mentionedItems = aiChatServices.extractMentionedItems(message);
+
                 return {
                     needsInventoryData: rule.needsInventoryData,
                     intentType: rule.intent,
                     queryType: rule.queryType,
                     confidence: rule.confidence,
-                    method: 'rule'
+                    method: 'rule',
+                    mentionedItems,
+                    originalMessage: message  // 保存原始消息
                 };
             }
         }
@@ -295,8 +308,19 @@ const aiChatServices = {
                 return await aiChatServices.mcpQueryLowStockItems(labName);
             case 'out_of_stock':
                 return await aiChatServices.mcpQueryOutOfStockItems(labName);
+            case 'search':
+                // 询问位置时，需要提取耗材名称并搜索
+                if (intent.mentionedItems && intent.mentionedItems.length > 0) {
+                    return await aiChatServices.mcpSearchInventory(labName, intent.mentionedItems[0]);
+                }
+                // 如果没有提取到耗材名称，从原始消息中提取
+                const itemName = aiChatServices.extractItemName(intent.originalMessage);
+                if (itemName) {
+                    return await aiChatServices.mcpSearchInventory(labName, itemName);
+                }
+                return await aiChatServices.mcpQueryInventorySummary(labName);
             case 'specific':
-                if (intent.mentionedItems.length > 0) {
+                if (intent.mentionedItems && intent.mentionedItems.length > 0) {
                     return await aiChatServices.mcpSearchInventory(labName, intent.mentionedItems[0]);
                 }
                 return await aiChatServices.mcpQueryInventorySummary(labName);
@@ -333,7 +357,7 @@ const aiChatServices = {
 
             // 查询所有库存项，只返回必要字段以减少token消耗
             const items = await Inventory.find({ labName })
-                .select('name specification quantity unit category status expiryDate minQuantity')
+                .select('name specification quantity unit category status expiryDate minQuantity location')
                 .lean(); // 使用 lean() 返回普通对象，减少内存
 
             return {
@@ -348,6 +372,7 @@ const aiChatServices = {
                     status: item.status,
                     expiryDate: item.expiryDate ? item.expiryDate.toISOString().split('T')[0] : null,
                     minQuantity: item.minQuantity || 0,
+                    location: item.location || '未设置存放位置',  // ✅ 添加存放位置
                     available: item.quantity > (item.minQuantity || 0) // 可用状态
                 }))
             };
@@ -486,6 +511,9 @@ const aiChatServices = {
                             inventoryText += `（${item.specification}）`;
                         }
                         inventoryText += `：库存 ${item.quantity}${item.unit}`;
+                        if (item.location) {
+                            inventoryText += `，位置:${item.location}`;
+                        }
                         if (!item.available) {
                             inventoryText += ` [不足，最小库存:${item.minQuantity}${item.unit}]`;
                         }
@@ -563,7 +591,8 @@ const aiChatServices = {
                 let specificText = `📦 查询结果（${inventoryData.count}项）：\n`;
                 inventoryData.items.forEach((item, _index) => {
                     let icon = item.status === 'normal' ? '✅' : item.status === 'expired' ? '🔴' : item.status === 'low_stock' ? '📉' : '❌';
-                    specificText += `${icon} ${item.name}：${item.quantity}`;
+                    specificText += `${icon} ${item.name}：${item.quantity}${item.unit || ''}`;
+                    if (item.location) specificText += `，存放位置：${item.location}`;
                     if (item.expiryDate) specificText += `，过期：${item.expiryDate}`;
                     specificText += '\n';
                 });
@@ -589,6 +618,66 @@ const aiChatServices = {
             default:
                 return JSON.stringify(inventoryData, null, 2);
         }
+    },
+
+    /**
+     * 从消息中提取提到的耗材名称
+     */
+    extractMentionedItems: (message) => {
+        if (!message) return [];
+
+        const mentionedItems = [];
+
+        // 常见耗材关键词库
+        const commonItems = [
+            '移液器', '移液枪', '移液枪头', '胰蛋白酶', 'trypsin',
+            'ripa', '裂解液', 'bca', '试剂盒', 'pvdf', '膜', 'sds',
+            'pbs', '缓冲液', 'edta', '抗体', '培养基', '离心管',
+            'pcr', '酶', '试剂', '凝胶', '乙醇', '甲醇', '乙酸'
+        ];
+
+        const lowerMessage = message.toLowerCase();
+
+        // 检测常见耗材
+        commonItems.forEach(item => {
+            if (lowerMessage.includes(item.toLowerCase())) {
+                mentionedItems.push(item);
+            }
+        });
+
+        // 尝试提取"XX在哪里"模式中的XX
+        const locationPattern = /(.{1,10})在(哪里|哪|什么地方)/;
+        const match = message.match(locationPattern);
+        if (match && match[1]) {
+            const itemName = match[1].trim();
+            if (itemName && !mentionedItems.includes(itemName)) {
+                mentionedItems.push(itemName);
+            }
+        }
+
+        return mentionedItems;
+    },
+
+    /**
+     * 从消息中提取耗材名称（用于搜索）
+     */
+    extractItemName: (message) => {
+        if (!message) return null;
+
+        // 1. 尝试"XX在哪里"模式
+        const locationPattern = /(.{1,10})在(哪里|哪|什么地方)/;
+        const match = message.match(locationPattern);
+        if (match && match[1]) {
+            return match[1].trim();
+        }
+
+        // 2. 提取提到的耗材
+        const mentionedItems = aiChatServices.extractMentionedItems(message);
+        if (mentionedItems.length > 0) {
+            return mentionedItems[0];
+        }
+
+        return null;
     },
 
     validateConfig: () => {
