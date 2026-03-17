@@ -27,25 +27,32 @@ const aiChatServices = {
 
         if (intent.needsInventoryData && labName) {
             // 使用 MCP HTTP 服务器查询库存
-            console.log('📡 使用 MCP HTTP 服务器查询库存...');
+            console.log('📡 使用查询库存...', intent.queryType);
             const inventoryData = await aiChatServices.mcpQuery(intent, labName);
 
             if (inventoryData && !inventoryData.error) {
                 // 将查询结果格式化为 AI 可理解的文本
-                console.log('✅ MCP 查询成功');
-                console.log('📦 库存数据:', JSON.stringify(inventoryData, null, 2));
+                console.log('✅ 查询成功，类型:', inventoryData.queryType);
+                if (inventoryData.queryType === 'all_inventory') {
+                    console.log('📦 仓库耗材数量:', inventoryData.count);
+                }
                 const formattedData = aiChatServices.formatInventoryForAI(inventoryData);
-                enhancedSystemPrompt += `\n\n## 库存查询结果\n${formattedData}`;
+                enhancedSystemPrompt += `\n\n## 当前库存数据\n${formattedData}`;
                 console.log('📝 注入后的 Prompt 长度:', enhancedSystemPrompt.length);
-                console.log('📝 注入的内容预览:', enhancedSystemPrompt.slice(-500));
             } else if (inventoryData?.error) {
-                console.error('⚠️⚠️⚠️ MCP 查询失败 ⚠️⚠️⚠️');
+                console.error('⚠️⚠️⚠️ 查询失败 ⚠️⚠️⚠️');
                 console.error('错误信息:', inventoryData.error);
-                console.error('请确保 MCP HTTP 服务器正在运行: cd mcp && npm start');
             }
         }
 
-        // 3. 构建消息（包含对话历史）
+        // 3. 注入当前日期信息（用于解析相对日期）
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+        const weekDay = weekDays[today.getDay()];
+        enhancedSystemPrompt += `\n\n## 当前日期信息\n- 今天：${todayStr}（星期${weekDay}）`;
+
+        // 4. 构建消息（包含对话历史）
         const messages = DeepSeekService.buildMessages(
             enhancedSystemPrompt,
             message,
@@ -124,7 +131,13 @@ const aiChatServices = {
         });
 
         // 意图分类（按优先级）
-        if (lowerMessage.includes('库存') && (lowerMessage.includes('概况') || lowerMessage.includes('总计') || lowerMessage.includes('多少项'))) {
+        // 优先检测实验计划意图
+        if (lowerMessage.includes('实验计划') || lowerMessage.includes('要做') || lowerMessage.includes('准备实验') ||
+            lowerMessage.includes('需要') && (lowerMessage.includes('实验') || mentionedItems.length > 0)) {
+            queryType = 'experiment_plan';
+            needsInventoryData = true;
+            intentType = 'experiment_plan';
+        } else if (lowerMessage.includes('库存') && (lowerMessage.includes('概况') || lowerMessage.includes('总计') || lowerMessage.includes('多少项'))) {
             queryType = 'summary';
             needsInventoryData = true;
         } else if (lowerMessage.includes('过期') && (lowerMessage.includes('已过') || lowerMessage.includes('已经'))) {
@@ -170,6 +183,9 @@ const aiChatServices = {
     mcpQuery: async (intent, labName) => {
         // 根据意图调用相应的 MCP 工具
         switch (intent.queryType) {
+            case 'experiment_plan':
+                // 实验计划需要完整的库存列表来匹配耗材
+                return await aiChatServices.mcpQueryAllInventory(labName);
             case 'summary':
                 return await aiChatServices.mcpQueryInventorySummary(labName);
             case 'expired':
@@ -205,6 +221,41 @@ const aiChatServices = {
             };
         }
         return { error: result.error || 'MCP 查询失败' };
+    },
+
+    /**
+     * MCP: 查询所有库存（用于实验计划解析）
+     * 获取完整的库存列表，包括所有耗材的名称、规格、数量等信息
+     */
+    mcpQueryAllInventory: async (labName) => {
+        // 这里我们直接查询数据库，因为MCP工具可能没有返回完整列表
+        try {
+            const { Inventory } = require('../../models/index.js');
+
+            // 查询所有库存项，只返回必要字段以减少token消耗
+            const items = await Inventory.find({ labName })
+                .select('name specification quantity unit category status expiryDate minQuantity')
+                .lean(); // 使用 lean() 返回普通对象，减少内存
+
+            return {
+                queryType: 'all_inventory',
+                count: items.length,
+                items: items.map(item => ({
+                    name: item.name,
+                    specification: item.specification || '',
+                    quantity: item.quantity,
+                    unit: item.unit || '',
+                    category: item.category || '其他',
+                    status: item.status,
+                    expiryDate: item.expiryDate ? item.expiryDate.toISOString().split('T')[0] : null,
+                    minQuantity: item.minQuantity || 0,
+                    available: item.quantity > (item.minQuantity || 0) // 可用状态
+                }))
+            };
+        } catch (error) {
+            console.error('查询所有库存失败:', error);
+            return { error: '查询库存失败' };
+        }
     },
 
     /**
@@ -307,6 +358,50 @@ const aiChatServices = {
         }
 
         switch (inventoryData.queryType) {
+            case 'all_inventory':
+                // 为实验计划格式化完整库存列表
+                if (inventoryData.count === 0) {
+                    return '⚠️ 仓库中暂无耗材，请先添加耗材';
+                }
+
+                let inventoryText = `📦 仓库耗材清单（共${inventoryData.count}项）：\n\n`;
+
+                // 按分类分组显示
+                const grouped = {};
+                inventoryData.items.forEach(item => {
+                    if (!grouped[item.category]) {
+                        grouped[item.category] = [];
+                    }
+                    grouped[item.category].push(item);
+                });
+
+                // 格式化每个分类
+                Object.keys(grouped).sort().forEach(category => {
+                    inventoryText += `【${category}】\n`;
+                    grouped[category].forEach(item => {
+                        const statusIcon = !item.available ? '❌' :
+                                         item.status === 'expired' ? '🔴' :
+                                         item.status === 'expiring_soon' ? '⚠️' : '✅';
+                        inventoryText += `  ${statusIcon} ${item.name}`;
+                        if (item.specification) {
+                            inventoryText += `（${item.specification}）`;
+                        }
+                        inventoryText += `：库存 ${item.quantity}${item.unit}`;
+                        if (!item.available) {
+                            inventoryText += ` [不足，最小库存:${item.minQuantity}${item.unit}]`;
+                        }
+                        if (item.expiryDate) {
+                            inventoryText += `，过期:${item.expiryDate}`;
+                        }
+                        inventoryText += `\n`;
+                    });
+                    inventoryText += `\n`;
+                });
+
+                inventoryText += `⚠️ 注意：只能解析仓库中存在的耗材，请检查库存数量是否足够`;
+
+                return inventoryText;
+
             case 'summary':
                 let summaryText = `库存概况：共 ${inventoryData.data.totalItems} 项耗材
 - 正常：${inventoryData.data.normalItems} 项

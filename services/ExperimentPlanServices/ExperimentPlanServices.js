@@ -14,7 +14,6 @@ const experimentPlanServices = {
             const regex = new RegExp(keyword, 'i');
             query.$or = [
                 { title: regex },
-                { experimentType: regex },
                 { description: regex }
             ];
         }

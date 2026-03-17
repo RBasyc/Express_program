@@ -13,15 +13,6 @@ const experimentPlanSchema = new mongoose.Schema({
         maxlength: [100, '实验标题最多100个字符']
     },
 
-    // 实验类型
-    experimentType: {
-        type: String,
-        required: [true, '实验类型不能为空'],
-        trim: true,
-        maxlength: [50, '实验类型最多50个字符'],
-        comment: '如：蛋白分析、分子生物学等'
-    },
-
     // 实验日期
     experimentDate: {
         type: Date,
