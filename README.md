@@ -20,6 +20,21 @@
 - 自动状态更新
 - **库存流水记录** - 完整的出入库操作审计
 
+### 实验计划管理 ⭐ 新增
+- 实验计划 CRUD 操作
+- 计划列表分页查询
+- 计划状态管理（根据日期自动判断）
+- 耗材清单关联管理
+- 创建计划时自动扣减库存
+- 删除计划时自动归还库存
+
+### 耗材共享协作 ⭐ 新增
+- 发布共享需求（我需要/我富余）
+- 需求大厅列表查询
+- 分类筛选（全部/我需要/我富余）
+- 获取发布者联系方式
+- 管理我的共享信息
+
 ### 实验室管理
 - 实验室信息管理
 - 实验室搜索与查询
@@ -28,6 +43,7 @@
 ### AI 智能助手
 - 集成 DeepSeek AI
 - 自然语言库存查询
+- 实验计划自动生成
 - 智能数据分析与建议
 - 支持 MCP 工具调用
 
@@ -53,6 +69,8 @@
 ### 主服务 (端口 3000)
 - 用户认证与授权
 - 库存 CRUD 操作
+- 实验计划管理 ⭐
+- 耗材共享管理 ⭐
 - 出入库流水管理
 - 实验室管理
 - AI 聊天接口
@@ -84,14 +102,19 @@ no1_express/
 ├── package.json                    # 项目配置和依赖
 ├── .env.example                    # 环境变量模板
 ├── routes/                         # 路由层
+│   ├── index.js                    # 路由聚合器
 │   ├── UserRoute/
 │   │   └── UserRoute.js           # 用户路由
 │   ├── InventoryRoute/
 │   │   └── InventoryRoute.js      # 库存路由
-│   ├── LabRoute/
-│   │   └── LabRoute.js            # 实验室路由
 │   ├── TransactionRoute/
 │   │   └── TransactionRoute.js   # 库存流水路由
+│   ├── LabRoute/
+│   │   └── LabRoute.js            # 实验室路由
+│   ├── ExperimentPlanRoute/        # 实验计划路由 ⭐ 新增
+│   │   └── ExperimentPlanRoute.js
+│   ├── ShareRequestRoute/          # 耗材共享路由 ⭐ 新增
+│   │   └── ShareRequestRoute.js
 │   └── AiChatRoute/
 │       └── AiChatRoute.js         # AI 聊天路由
 ├── controller/                     # 控制器层
@@ -99,10 +122,14 @@ no1_express/
 │   │   └── UserController.js      # 用户控制器
 │   ├── InventoryController/
 │   │   └── InventoryController.js # 库存控制器
-│   ├── LabController/
-│   │   └── LabController.js       # 实验室控制器
 │   ├── TransactionController/
 │   │   └── TransactionController.js # 流水控制器
+│   ├── LabController/
+│   │   └── LabController.js       # 实验室控制器
+│   ├── ExperimentPlanController/    # 实验计划控制器 ⭐ 新增
+│   │   └── ExperimentPlanController.js
+│   ├── ShareRequestController/     # 耗材共享控制器 ⭐ 新增
+│   │   └── ShareRequestController.js
 │   └── AiChatController/
 │       └── AiChatController.js    # AI 控制器
 ├── services/                       # 服务层
@@ -110,26 +137,34 @@ no1_express/
 │   │   └── UserServices.js        # 用户服务
 │   ├── InventoryServices/
 │   │   └── InventoryServices.js   # 库存服务
-│   ├── LabServices/
-│   │   └── LabServices.js         # 实验室服务
 │   ├── TransactionServices/
 │   │   └── TransactionServices.js # 流水服务
+│   ├── LabServices/
+│   │   └── LabServices.js         # 实验室服务
+│   ├── ExperimentPlanServices/      # 实验计划服务 ⭐ 新增
+│   │   └── ExperimentPlanServices.js
+│   ├── ShareRequestServices/        # 耗材共享服务 ⭐ 新增
+│   │   └── ShareRequestServices.js
 │   └── AiChatServices/
 │       ├── AiChatServices.js      # AI 聊天服务
 │       └── DeepSeekService.js     # DeepSeek API 封装
 ├── models/                         # 数据模型层
+│   ├── index.js                    # 模型导出索引
 │   ├── UserModel/
 │   │   └── UserModel.js           # 用户模型
 │   ├── InventoryModel/
 │   │   └── InventoryModel.js      # 库存模型
 │   ├── LabModel/
 │   │   └── LabModel.js            # 实验室模型
+│   ├── ExperimentPlanModel/         # 实验计划模型 ⭐ 新增
+│   │   └── ExperimentPlanModel.js
+│   ├── ShareRequestModel/           # 耗材共享模型 ⭐ 新增
+│   │   └── ShareRequestModel.js
 │   └── TransactionModel/
 │       └── TransactionModel.js    # 流水模型
 └── utils/                          # 工具类
     ├── JWT.js                      # JWT 工具函数
     ├── mongoDB.js                  # MongoDB 连接工具
-    ├── config.js                   # 配置管理
     └── promptTemplates.js          # AI 提示词模板
 ```
 
@@ -142,7 +177,7 @@ no1_express/
 
 1. 克隆仓库
 ```bash
-git clone https://github.com/RBasyc/Express_program.git
+git clone <repository-url>
 cd no1_express
 ```
 
@@ -391,16 +426,207 @@ Content-Type: application/json
 - `add`: 入库操作
 - `subtract`: 出库操作
 
+**功能说明**：
+- 使用原子 `$inc` 操作确保并发安全
+- 自动创建 Transaction 记录
+- 自动记录操作人、时间等信息
+- 出库前检查库存是否充足
+
 #### 10. 删除耗材
 ```
 DELETE /adminapi/inventory/delete/:id
+```
+
+### 实验计划管理 ⭐ 新增
+
+> 所有实验计划接口都需要在请求头中包含有效的 JWT token
+
+#### 1. 获取实验计划列表
+```
+GET /adminapi/experiment-plan/list?page=1&pageSize=10&status=&keyword=
+```
+
+**查询参数**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | Number | 否 | 页码，默认 1 |
+| pageSize | Number | 否 | 每页数量，默认 10 |
+| status | String | 否 | 状态筛选 |
+| keyword | String | 否 | 关键词搜索（标题、类型） |
+
+**返回数据结构**：
+```json
+{
+  "errCode": "0",
+  "data": {
+    "total": 10,
+    "items": [...],
+    "page": 1,
+    "pageSize": 10,
+    "totalPages": 1
+  }
+}
+```
+
+#### 2. 获取实验计划详情
+```
+GET /adminapi/experiment-plan/detail/:id
+```
+
+**功能说明**：
+- 自动 populate 耗材库存信息（name, quantity, unit, status, expiryDate）
+- 验证实验室权限
+
+#### 3. 创建实验计划
+```
+POST /adminapi/experiment-plan/add
+Content-Type: application/json
+Authorization: <token>
+
+{
+  "title": "Western Blot 实验",
+  "experimentType": "蛋白实验",
+  "experimentDate": "2025-03-20",
+  "description": "检测蛋白表达水平",
+  "itemsNeeded": [
+    {
+      "name": "胰蛋白酶",
+      "quantity": 5,
+      "unit": "瓶",
+      "specification": "500ml",
+      "category": "试剂"
+    }
+  ]
+}
+```
+
+**功能说明**：
+- 自动根据耗材名称匹配库存
+- 自动扣减库存数量
+- 记录消耗出库流水（consume_out）
+- 自动填充库存状态信息
+
+#### 4. 更新实验计划
+```
+PUT /adminapi/experiment-plan/update/:id
+Content-Type: application/json
+
+{
+  "title": "更新后的标题",
+  "status": "in_progress"
+}
+```
+
+#### 5. 更新实验进度
+```
+PUT /adminapi/experiment-plan/progress/:id
+Content-Type: application/json
+
+{
+  "progress": 50,
+  "status": "in_progress"
+}
+```
+
+#### 6. 删除实验计划
+```
+DELETE /adminapi/experiment-plan/delete/:id
+Authorization: <token>
+```
+
+**注意**：前端应先归还所有耗材，再删除计划
+
+#### 7. 获取实验计划统计
+```
+GET /adminapi/experiment-plan/statistics
+Authorization: <token>
+```
+
+**返回数据**：
+```json
+{
+  "errCode": "0",
+  "data": {
+    "total": 20,
+    "pending": 5,
+    "in_progress": 8,
+    "completed": 7
+  }
+}
+```
+
+### 耗材共享管理 ⭐ 新增
+
+> 所有耗材共享接口都需要在请求头中包含有效的 JWT token
+
+#### 1. 获取共享需求列表
+```
+GET /adminapi/share-request/list?page=1&pageSize=10&requestType=&keyword=
+Authorization: <token>
+```
+
+**查询参数**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| page | Number | 否 | 页码，默认 1 |
+| pageSize | Number | 否 | 每页数量，默认 10 |
+| requestType | String | 否 | 类型筛选（request/share）|
+| keyword | String | 否 | 关键词搜索 |
+
+#### 2. 获取我的共享列表
+```
+GET /adminapi/share-request/my-shares
+Authorization: <token>
+```
+
+#### 3. 获取发布者联系方式
+```
+GET /adminapi/share-request/contact/:id
+Authorization: <token>
+```
+
+**返回数据**：
+```json
+{
+  "errCode": "0",
+  "data": {
+    "fullContact": "张三 - 手机: 138xxxxxxx, 邮箱: xxx@xx.com"
+  }
+}
+```
+
+#### 4. 发布共享需求
+```
+POST /adminapi/share-request/add
+Content-Type: application/json
+Authorization: <token>
+
+{
+  "title": "求购胰蛋白酶",
+  "requestType": "request",
+  "itemName": "胰蛋白酶",
+  "quantity": "10瓶",
+  "expectedTime": "2025-03-20",
+  "description": "紧急需要用于实验"
+}
+```
+
+**requestType 类型**：
+- `request` - 我需要（求购）
+- `share` - 我富余（可转让）
+
+#### 5. 删除共享需求
+```
+DELETE /adminapi/share-request/delete/:id
+Authorization: <token>
 ```
 
 ### 库存流水记录
 
 #### 获取流水列表
 ```
-GET /adminapi/transaction/list?page=1&pageSize=10
+GET /adminapi/transaction/list?page=1&pageSize=10&type=&inventoryId=
+Authorization: <token>
 ```
 
 **查询参数**
@@ -411,10 +637,33 @@ GET /adminapi/transaction/list?page=1&pageSize=10
 | type | String | 否 | 操作类型筛选 |
 | inventoryId | String | 否 | 关联耗材 ID |
 
+**返回数据**：
+```json
+{
+  "errCode": "0",
+  "data": {
+    "total": 100,
+    "items": [...],
+    "page": 1,
+    "pageSize": 10,
+    "totalPages": 10
+  }
+}
+```
+
 #### 获取流水统计
 ```
 GET /adminapi/transaction/statistics
+Authorization: <token>
 ```
+
+**流水记录字段说明**：
+- `userName` - 操作人姓名
+- `contact` - 操作人联系方式
+- `operationTime` - 操作时间戳
+- `quantityBefore` - 操作前数量
+- `quantityAfter` - 操作后数量
+- `remark` - 备注信息
 
 ### AI 智能助手
 
@@ -425,15 +674,46 @@ Content-Type: application/json
 Authorization: <token>
 
 {
-  "message": "查询实验室有哪些试剂即将过期？",
+  "message": "下周三做 Western Blot，需要胰蛋白酶 5瓶",
   "conversationHistory": []
 }
 ```
 
 **功能说明**：
 - 支持自然语言库存查询
+- **支持实验计划生成**：返回结构化的实验计划数据
 - 自动调用 MCP 工具获取数据
-- 返回结构化的 AI 回复
+- 返回格式化的 AI 回复
+
+**实验计划生成响应格式**：
+```json
+{
+  "errCode": "0",
+  "data": {
+    "type": "experiment_plan",
+    "summary": "实验计划已生成",
+    "parsed_items": [
+      {
+        "name": "胰蛋白酶",
+        "quantity": 5,
+        "quantity_str": "5瓶",
+        "unit": "瓶"
+      }
+    ]
+  }
+}
+```
+
+**普通查询响应格式**：
+```json
+{
+  "errCode": "0",
+  "data": {
+    "type": "text",
+    "content": "胰蛋白酶存放在4℃冰箱第二层"
+  }
+}
+```
 
 ## MCP 工具接口（独立服务）
 
@@ -457,6 +737,47 @@ GET /health
 
 ## 数据模型
 
+### ExperimentPlan（实验计划）⭐ 新增
+
+**字段说明**：
+- `title` - 计划标题（必填）
+- `experimentType` - 实验类型（必填）
+- `experimentDate` - 实验日期（必填）
+- `description` - 实验描述
+- `status` - 计划状态（可选）
+- `progress` - 进度（0-100，可选）
+- `itemsNeeded` - 耗材清单（数组）
+  - `name` - 耗材名称
+  - `quantity` - 数量
+  - `unit` - 单位
+  - `specification` - 规格
+  - `category` - 分类
+  - `inventoryId` - 关联的库存 ID
+  - `stockInfo` - 库存状态信息
+- `labName` - 所属实验室（必填，自动从 JWT 获取）
+- `createdBy` - 创建人 ID（自动从 JWT 获取）
+- `createdAt` - 创建时间
+- `updatedAt` - 更新时间
+
+**状态说明**：
+- 状态会根据日期自动判断，无需手动设置
+- 未取消的计划根据 `experimentDate` 自动判断为"未开始"或"进行中"
+
+### ShareRequest（耗材共享）⭐ 新增
+
+**字段说明**：
+- `title` - 标题（必填）
+- `requestType` - 类型（必填）：`request`（我需要）/ `share`（我富余）
+- `itemName` - 耗材名称（必填）
+- `quantity` - 数量（必填）
+- `expectedTime` - 期望时间（必填）
+- `description` - 描述
+- `status` - 状态：`urgent`（紧急）/ `normal`（一般）
+- `publisher` - 发布者（关联到 User）
+- `labName` - 所属实验室
+- `createdAt` - 创建时间
+- `consultCount` - 咨询次数
+
 ### Inventory 状态值
 - `normal` - 正常
 - `low_stock` - 低库存
@@ -466,7 +787,7 @@ GET /health
 
 ### Transaction 流水类型
 - `purchase_in` - 采购入库
-- `return_in` - 退货入库
+- `return_in` - 归还入库
 - `consume_out` - 消耗出库
 - `use_out` - 使用出库
 
@@ -502,6 +823,53 @@ if (labName) {
 
 每个有效的请求都会在响应 `Authorization` 头中返回一个新的 token。
 
+### 实验计划业务逻辑 ⭐
+
+#### 创建计划时的库存联动
+```javascript
+// 1. 匹配耗材名称查找库存
+const inventory = await Inventory.findOne({
+  name: item.name,
+  labName: labName
+})
+
+// 2. 扣减库存
+await Inventory.findByIdAndUpdate(
+  inventory._id,
+  { $inc: { quantity: -item.quantity } }
+)
+
+// 3. 创建出库流水
+await Transaction.create({
+  inventoryId: inventory._id,
+  type: 'consume_out',
+  quantity: -item.quantity,
+  // ... 其他字段
+})
+```
+
+#### 取消计划时的库存归还
+```javascript
+// 1. 归还所有耗材
+for (const item of plan.itemsNeeded) {
+  await Inventory.findByIdAndUpdate(
+    item.inventoryId,
+    { $inc: { quantity: item.quantity } }
+  )
+
+  // 2. 创建入库流水
+  await Transaction.create({
+    inventoryId: item.inventoryId,
+    type: 'use_out',
+    quantity: item.quantity,
+    // ...
+  })
+}
+
+// 3. 删除计划
+await ExperimentPlan.findByIdAndDelete(planId)
+```
+
 ### 已实现功能
 
 - ✅ 用户认证与授权
@@ -513,6 +881,8 @@ if (labName) {
 - ✅ 实验室管理
 - ✅ AI 智能助手集成
 - ✅ MCP 工具接口支持
+- ✅ **实验计划管理** ⭐ 新增
+- ✅ **耗材共享协作** ⭐ 新增
 - ✅ 环境变量配置
 
 ## 安全建议
@@ -530,19 +900,6 @@ if (labName) {
 4. **限制 CORS 来源**
 
 5. **添加速率限制**
-
-## 测试
-
-运行库存流水功能测试：
-```bash
-node scripts/test-transaction.js
-```
-
-测试前需配置环境变量：
-```bash
-export TEST_USERNAME=your_username
-export TEST_PASSWORD=your_password
-```
 
 ## 部署建议
 

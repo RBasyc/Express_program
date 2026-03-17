@@ -32,15 +32,16 @@ const UserController = {
             const token = JWT.generate({
                 _id: user._id,
                 nickName: user.nickName,
-                labName: user.labName
+                labName: user.activeLabName,  // Use active lab from LabMember
+                labId: user.activeLabId       // Include lab ID for permissions
             }, "1d")
             res.header("Authorization", token)
             res.status(200).send({ errCode: '0', errorInfo: '登录成功', token, userInfo: user })
         }
     },
     register: async (req, res) => {
-        const { nickName, password, labName } = req.body;
-        const user = await userServices.register(nickName, password, labName);
+        const { nickName, password } = req.body;  // Remove labName from destructuring
+        const user = await userServices.register(nickName, password);
         if (!user) {
             return res.status(400).send({ errCode: '10001', errorInfo: '该昵称已被使用', data: null })
         }
@@ -48,7 +49,8 @@ const UserController = {
             const token = JWT.generate({
                 _id: user._id,
                 nickName: user.nickName,
-                labName: user.labName
+                labName: null,  // No lab on registration
+                labId: null
             }, "1d")
             res.header("Authorization", token)
             res.status(200).send({
@@ -57,26 +59,26 @@ const UserController = {
                 data: {
                     userId: user._id,
                     nickName: user.nickName,
-                    labName: user.labName,
                     token: token
                 }
             })
         }
     },
     updateProfile: async (req, res) => {
-        const { _id, realName, email, phone, avatar, labName } = req.body;
+        const { _id, realName, email, phone, avatar } = req.body;  // Remove labName
 
-        const result = await userServices.updateProfile(_id, realName, email, phone, avatar, labName);
+        const result = await userServices.updateProfile(_id, realName, email, phone, avatar);
         if (!result.success) {
             return res.status(400).send({ errCode: '-1', errorInfo: result.message })
         }
         else {
-            // 更新成功后，生成新的 token（包含新的 labName）
+            // 更新成功后，生成新的 token
             const updatedUser = result.data;
             const newToken = JWT.generate({
                 _id: updatedUser._id,
                 nickName: updatedUser.nickName,
-                labName: updatedUser.labName
+                labName: req.body.labName || null,  // Use current lab from JWT
+                labId: req.body.labId || null
             }, "1d");
 
             res.header("Authorization", newToken);

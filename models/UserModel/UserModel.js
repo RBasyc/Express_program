@@ -31,10 +31,10 @@ const userSchema = new mongoose.Schema({
     },
     labName: {
         type: String,
-        required: true,
+        required: false,  // Changed from true - users will have labs through LabMember
         trim: true,
         maxlength: [100, '实验室名称最多100个字符'],
-        comment: '所属实验室名称（必填）'
+        comment: '所属实验室名称（已弃用，保留用于向后兼容）'
     },
     role: {
         type: String,
