@@ -111,7 +111,8 @@ const labMemberServices = {
                 success: true,
                 data: {
                     currentLabId: labId,
-                    currentLabName: lab.labName
+                    currentLabName: lab.labName,
+                    role: member.role // 返回成员在该实验室的角色
                 }
             };
         } catch (error) {
@@ -164,6 +165,39 @@ const labMemberServices = {
                             role: 'pending',
                             applicationReason: reason,
                             rejectedReason: null
+                        },
+                        { returnDocument: 'after' }
+                    );
+
+                    // Create log
+                    await LabMemberLog.create({
+                        memberId: updatedMember._id,
+                        userId: userId,
+                        labId: labId,
+                        action: 'apply',
+                        operatorId: userId,
+                        operatorName: (await User.findById(userId)).nickName,
+                        remark: reason || '重新申请加入实验室'
+                    });
+
+                    return {
+                        success: true,
+                        data: {
+                            memberId: updatedMember._id,
+                            status: 'pending'
+                        }
+                    };
+                }
+                if (existingMember.status === 'left') {
+                    // Update left member to pending (re-apply)
+                    const updatedMember = await LabMember.findOneAndUpdate(
+                        { _id: existingMember._id },
+                        {
+                            status: 'pending',
+                            role: 'pending',
+                            applicationReason: reason,
+                            rejectedReason: null,
+                            isActive: false
                         },
                         { returnDocument: 'after' }
                     );
@@ -449,6 +483,22 @@ const labMemberServices = {
                 };
             }
 
+            // 检查是否是最后一个管理员
+            if (member.role === 'admin' && newRole !== 'admin') {
+                const adminCount = await LabMember.countDocuments({
+                    labId: member.labId,
+                    role: 'admin',
+                    status: 'active'
+                });
+
+                if (adminCount <= 1) {
+                    return {
+                        success: false,
+                        message: '实验室至少需要保留一名管理员'
+                    };
+                }
+            }
+
             const beforeRole = member.role;
 
             // Update role
@@ -495,6 +545,22 @@ const labMemberServices = {
                     success: false,
                     message: '成员记录不存在'
                 };
+            }
+
+            // 检查是否是最后一个管理员
+            if (member.role === 'admin') {
+                const adminCount = await LabMember.countDocuments({
+                    labId: member.labId,
+                    role: 'admin',
+                    status: 'active'
+                });
+
+                if (adminCount <= 1) {
+                    return {
+                        success: false,
+                        message: '无法移除实验室的唯一管理员'
+                    };
+                }
             }
 
             // Update status to left
