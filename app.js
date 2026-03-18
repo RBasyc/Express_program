@@ -21,6 +21,7 @@ const AiChatRouter = require('./routes/AiChatRoute/AiChatRoute')
 const ExperimentPlanRouter = require('./routes/ExperimentPlanRoute/ExperimentPlanRoute')
 const ShareRequestRouter = require('./routes/ShareRequestRoute/ShareRequestRoute')
 const LabMemberRouter = require('./routes/LabMemberRoute/LabMemberRoute')
+const StatisticsRouter = require('./routes/StatisticsRoute/StatisticsRoute')
 
 app.use(express.json())
 app.use(cros({
@@ -90,6 +91,7 @@ app.use('/ai', AiChatRouter)
 app.use('/adminapi/experiment-plan', ExperimentPlanRouter)
 app.use('/adminapi/share-request', ShareRequestRouter)
 app.use('/adminapi/lab-member', LabMemberRouter)
+app.use('/adminapi/statistics', StatisticsRouter)
 
 app.use(function (req, res, next) {
     const err = new Error('Not Found')
