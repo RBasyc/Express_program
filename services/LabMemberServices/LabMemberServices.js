@@ -802,7 +802,7 @@ const labMemberServices = {
                     memberId: updatedMember._id,
                     userId: userId,
                     labId: labId,
-                    action: 'add_admin',
+                    action: 'approve',
                     operatorId: userId,
                     operatorName: user.nickName,
                     remark: '实验室创建者直接设为管理员'
@@ -842,7 +842,7 @@ const labMemberServices = {
                 memberId: newMember._id,
                 userId: userId,
                 labId: labId,
-                action: 'add_admin',
+                action: 'approve',
                 operatorId: userId,
                 operatorName: user.nickName,
                 remark: '实验室创建者直接设为管理员'
