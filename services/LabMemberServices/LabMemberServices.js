@@ -746,6 +746,124 @@ const labMemberServices = {
         } catch (error) {
             return false;
         }
+    },
+
+    /**
+     * Add user as lab admin directly (for lab creator)
+     */
+    addLabAdminDirectly: async (userId, labId) => {
+        try {
+            // Check if lab exists
+            const lab = await Lab.findById(labId);
+            if (!lab) {
+                return {
+                    success: false,
+                    message: '实验室不存在'
+                };
+            }
+
+            // Check if user exists
+            const user = await User.findById(userId);
+            if (!user) {
+                return {
+                    success: false,
+                    message: '用户不存在'
+                };
+            }
+
+            // Check if already a member
+            const existingMember = await LabMember.findOne({
+                userId: userId,
+                labId: labId
+            });
+
+            if (existingMember) {
+                // Update to admin and active
+                const updatedMember = await LabMember.findOneAndUpdate(
+                    { _id: existingMember._id },
+                    {
+                        status: 'active',
+                        role: 'admin',
+                        isActive: true,
+                        approvedBy: userId,
+                        approvedAt: new Date()
+                    },
+                    { returnDocument: 'after' }
+                );
+
+                // Deactivate all other labs
+                await LabMember.updateMany(
+                    { userId: userId, _id: { $ne: existingMember._id } },
+                    { isActive: false }
+                );
+
+                // Create log
+                await LabMemberLog.create({
+                    memberId: updatedMember._id,
+                    userId: userId,
+                    labId: labId,
+                    action: 'add_admin',
+                    operatorId: userId,
+                    operatorName: user.nickName,
+                    remark: '实验室创建者直接设为管理员'
+                });
+
+                return {
+                    success: true,
+                    data: {
+                        memberId: updatedMember._id,
+                        status: 'active',
+                        role: 'admin'
+                    },
+                    message: '添加管理员成功'
+                };
+            }
+
+            // Create new lab member as admin
+            const newMember = await LabMember.create({
+                userId: userId,
+                labId: labId,
+                status: 'active',
+                role: 'admin',
+                isActive: true,
+                approvedBy: userId,
+                approvedAt: new Date(),
+                joinedAt: new Date()
+            });
+
+            // Deactivate all other labs
+            await LabMember.updateMany(
+                { userId: userId, _id: { $ne: newMember._id } },
+                { isActive: false }
+            );
+
+            // Create log
+            await LabMemberLog.create({
+                memberId: newMember._id,
+                userId: userId,
+                labId: labId,
+                action: 'add_admin',
+                operatorId: userId,
+                operatorName: user.nickName,
+                remark: '实验室创建者直接设为管理员'
+            });
+
+            return {
+                success: true,
+                data: {
+                    memberId: newMember._id,
+                    status: 'active',
+                    role: 'admin'
+                },
+                message: '添加管理员成功'
+            };
+        } catch (error) {
+            console.error('addLabAdminDirectly error:', error);
+            return {
+                success: false,
+                message: error.message || '添加管理员失败'
+            };
+        }
     }
 };
 

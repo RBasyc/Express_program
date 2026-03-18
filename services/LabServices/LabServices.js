@@ -29,16 +29,20 @@ const labServices = {
     // 创建实验室
     create: async (labData) => {
         try {
+            console.log('创建实验室，接收到的数据:', labData);
+
             const { labName, university, managerName, managerContact, status = 'active' } = labData;
 
             // 验证必填字段
             if (!labName || !university) {
+                console.log('必填字段验证失败:', { labName, university });
                 return { success: false, message: '实验室名称和所属大学为必填项' };
             }
 
             // 检查实验室名称是否已存在
             const existingLab = await Lab.findOne({ labName });
             if (existingLab) {
+                console.log('实验室名称已存在:', labName);
                 return { success: false, message: '该实验室名称已存在' };
             }
 
@@ -51,9 +55,23 @@ const labServices = {
                 status
             });
 
+            console.log('实验室创建成功:', lab);
             return { success: true, data: lab, message: '创建成功' };
         } catch (error) {
-            return { success: false, message: error.message };
+            console.error('创建实验室失败，详细错误:', error);
+
+            // 处理MongoDB唯一键冲突错误
+            if (error.code === 11000) {
+                return { success: false, message: '该实验室名称已存在' };
+            }
+
+            // 处理验证错误
+            if (error.name === 'ValidationError') {
+                const errors = Object.values(error.errors).map(e => e.message).join(', ');
+                return { success: false, message: `数据验证失败: ${errors}` };
+            }
+
+            return { success: false, message: error.message || '创建实验室失败' };
         }
     },
 

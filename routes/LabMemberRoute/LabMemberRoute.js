@@ -38,4 +38,7 @@ LabMemberRoute.post('/leave/:labId', LabMemberController.leaveLab);
 // Get member logs (admin only)
 LabMemberRoute.get('/:labId/logs', LabMemberController.getLogs);
 
+// Add user as lab admin directly (for lab creator)
+LabMemberRoute.post('/add-admin', LabMemberController.addAdminDirectly);
+
 module.exports = LabMemberRoute;

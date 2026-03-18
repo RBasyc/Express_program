@@ -608,6 +608,52 @@ const LabMemberController = {
                 errorInfo: error.message || '获取日志失败'
             });
         }
+    },
+
+    /**
+     * Add user as lab admin directly (for lab creator)
+     */
+    addAdminDirectly: async (req, res) => {
+        try {
+            const token = req.headers['authorization'];
+            const payload = JWT.verify(token);
+            const userId = payload?._id;
+            const { labId } = req.body;
+
+            if (!userId) {
+                return res.status(401).send({
+                    errCode: '-1',
+                    errorInfo: '未授权访问'
+                });
+            }
+
+            if (!labId) {
+                return res.status(400).send({
+                    errCode: '-1',
+                    errorInfo: '实验室ID不能为空'
+                });
+            }
+
+            const result = await labMemberServices.addLabAdminDirectly(userId, labId);
+
+            if (!result.success) {
+                return res.status(400).send({
+                    errCode: '-1',
+                    errorInfo: result.message
+                });
+            }
+
+            res.status(200).send({
+                errCode: '0',
+                errorInfo: result.message,
+                data: result.data
+            });
+        } catch (error) {
+            res.status(500).send({
+                errCode: '-1',
+                errorInfo: error.message || '添加管理员失败'
+            });
+        }
     }
 };
 
